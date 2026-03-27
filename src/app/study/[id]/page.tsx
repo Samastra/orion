@@ -9,7 +9,7 @@ import {
 import { DocumentViewer } from "@/components/study/DocumentViewer";
 import { ChatInterface } from "@/components/study/ChatInterface";
 import { 
-  ArrowLeft, 
+  Home, 
   Upload,
   Loader2,
 } from 'lucide-react';
@@ -48,12 +48,12 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden text-foreground">
       {/* Premium Minimal Header */}
-      <header className="h-12 border-b border-white/[0.06] flex items-center justify-between px-3 bg-background/80 backdrop-blur-2xl z-20">
-        {/* Left: Back + Document info */}
-        <div className="flex items-center gap-2">
+      <header className="h-12 border-b border-white/[0.06] flex items-center justify-between px-4 bg-background/80 backdrop-blur-2xl z-20">
+        {/* Left: Home + Document info */}
+        <div className="flex items-center gap-3">
           <Link href="/dashboard">
             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground/70 hover:text-foreground hover:bg-white/5">
-              <ArrowLeft className="w-4 h-4" />
+              <Home className="w-4 h-4" />
             </Button>
           </Link>
 
@@ -73,8 +73,8 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
           )}
         </div>
 
-        {/* Right: Upload */}
-        <div className="flex items-center gap-2">
+        {/* Right: Upload + Avatar */}
+        <div className="flex items-center gap-4">
           <input 
             type="file" 
             ref={fileInputRef} 
@@ -88,11 +88,20 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
             disabled={isParsing}
             variant="ghost" 
             size="sm" 
-            className="h-8 rounded-lg gap-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 text-[12px] font-medium"
+            className="h-8 rounded-lg gap-1.5 text-muted-foreground hover:text-foreground hover:bg-white/5 text-[12px] font-medium px-2"
           >
             {isParsing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
             {file ? "Change" : "Upload"}
           </Button>
+
+          <div className="w-px h-4 bg-white/[0.06]" />
+
+          {/* User Avatar */}
+          <button className="h-8 w-8 rounded-full border border-white/[0.08] bg-white/5 flex items-center justify-center overflow-hidden hover:border-indigo-500/50 transition-colors cursor-pointer group">
+            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500/20 to-purple-500/20 group-hover:from-indigo-500/30 group-hover:to-purple-500/30">
+              <span className="text-[11px] font-bold text-indigo-400">JD</span>
+            </div>
+          </button>
         </div>
       </header>
 

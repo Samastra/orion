@@ -32,13 +32,13 @@ export function FlashCard({ card, cardNumber, total }: FlashCardProps) {
       </div>
 
       {/* Flip container */}
-      <button
+      <div 
+        className="w-full cursor-pointer group"
         onClick={() => setFlipped(!flipped)}
-        className="w-full cursor-pointer"
-        style={{ transformStyle: 'preserve-3d' }}
+        style={{ perspective: '1000px' }}
       >
         <div
-          className="relative w-full transition-transform duration-500 ease-out"
+          className="relative w-full min-h-[320px] transition-all duration-500 ease-out"
           style={{
             transformStyle: 'preserve-3d',
             transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
@@ -46,35 +46,43 @@ export function FlashCard({ card, cardNumber, total }: FlashCardProps) {
         >
           {/* Front */}
           <div
-            className="w-full min-h-[280px] rounded-2xl border border-white/[0.08] bg-white/[0.02] p-8 flex flex-col items-center justify-center text-center"
-            style={{ backfaceVisibility: 'hidden' }}
+            className="absolute inset-0 w-full h-full rounded-2xl border border-white/[0.08] bg-[#0A0A0B] p-8 flex flex-col items-center justify-center text-center shadow-2xl"
+            style={{ 
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              transform: 'translateZ(1px)'
+            }}
           >
             <span className="text-[10px] font-semibold text-muted-foreground/30 uppercase tracking-widest mb-4">Question</span>
-            <p className="text-[16px] text-foreground/90 leading-relaxed font-medium">
+            <p className="text-[16px] text-white/90 leading-relaxed font-medium">
               {card.front}
             </p>
-            <div className="mt-6 flex items-center gap-1.5 text-muted-foreground/25">
+            <div className="mt-8 flex items-center gap-1.5 text-muted-foreground/25">
               <RotateCcw className="w-3.5 h-3.5" />
-              <span className="text-[10px] font-medium">Tap to reveal</span>
+              <span className="text-[10px] font-medium uppercase tracking-tight">Tap to reveal</span>
             </div>
           </div>
 
           {/* Back */}
           <div
-            className="absolute inset-0 w-full min-h-[280px] rounded-2xl border border-indigo-500/15 bg-indigo-500/[0.03] p-8 flex flex-col items-center justify-center text-center"
-            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+            className="absolute inset-0 w-full h-full rounded-2xl border border-indigo-500/20 bg-[#0D0D12] p-8 flex flex-col items-center justify-center text-center shadow-2xl"
+            style={{ 
+              backfaceVisibility: 'hidden',
+              WebkitBackfaceVisibility: 'hidden',
+              transform: 'rotateY(180deg) translateZ(1px)'
+            }}
           >
             <span className="text-[10px] font-semibold text-indigo-400/50 uppercase tracking-widest mb-4">Answer</span>
-            <p className="text-[15px] text-foreground/85 leading-relaxed">
+            <p className="text-[15px] text-white/80 leading-relaxed">
               {card.back}
             </p>
-            <div className="mt-6 flex items-center gap-1.5 text-muted-foreground/25">
+            <div className="mt-8 flex items-center gap-1.5 text-indigo-400/20">
               <RotateCcw className="w-3.5 h-3.5" />
-              <span className="text-[10px] font-medium">Tap to flip back</span>
+              <span className="text-[10px] font-medium uppercase tracking-tight">Tap to flip back</span>
             </div>
           </div>
         </div>
-      </button>
+      </div>
     </div>
   );
 }
