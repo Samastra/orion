@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { CourseTable } from "@/components/dashboard/CourseTable";
 import { 
@@ -5,14 +7,21 @@ import {
   Clock, 
   Trophy, 
   TrendingUp,
-  Search,
   Bell,
   Calendar
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { UserAvatar, useUser } from "@/components/auth/UserAvatar";
 
 export default function DashboardPage() {
+  const { user, loading } = useUser();
+  const nickname = user?.user_metadata?.nickname;
+  const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Student';
+  const major = user?.user_metadata?.major || 'General Studies';
+  
+  const greetingName = nickname || firstName;
+
   const stats = [
     { label: 'Courses Active', value: '12', icon: BookOpen, color: 'text-indigo-400' },
     { label: 'Study Hours', value: '48.5h', icon: Clock, color: 'text-violet-400' },
@@ -25,7 +34,16 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div className="space-y-1">
-          <h1 className="text-4xl font-bold tracking-tight">Welcome, Samuel 👋</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-4xl font-bold tracking-tight">
+              Welcome, {loading ? '...' : greetingName} 👋
+            </h1>
+            {!loading && (
+              <span className="mt-1 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[11px] font-bold text-indigo-400 uppercase tracking-widest">
+                {major}
+              </span>
+            )}
+          </div>
           <p className="text-muted-foreground text-lg">You&apos;ve completed <span className="text-emerald-500 font-semibold">85%</span> of your weekly study goals. Keep it up!</p>
         </div>
         <div className="flex items-center gap-3">
@@ -35,9 +53,7 @@ export default function DashboardPage() {
           <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl border-white/5 bg-white/5 hover:bg-white/10">
             <Calendar className="w-5 h-5 text-muted-foreground" />
           </Button>
-          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">
-            S
-          </div>
+          <UserAvatar size="lg" />
         </div>
       </div>
 
@@ -74,3 +90,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

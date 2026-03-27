@@ -10,16 +10,17 @@ import {
   GraduationCap, 
   Settings, 
   LogOut,
-  ChevronRight,
   Search
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { UserAvatar } from "@/components/auth/UserAvatar";
+import { signOut } from "@/lib/supabase/actions";
 
 const navItems = [
   { icon: LayoutDashboard, label: 'Overview', href: '/dashboard' },
-  { icon: BookOpen, label: 'Study Mode', href: `/study/session-${Math.random().toString(36).substring(7)}` },
+  { icon: BookOpen, label: 'Study Mode', href: `/study/session-${Date.now().toString(36)}` },
   { icon: Target, label: 'Practice', href: '/dashboard/practice' },
   { icon: GraduationCap, label: 'Courses', href: '/dashboard/courses' },
 ];
@@ -48,7 +49,7 @@ export function Sidebar() {
 
       <nav className="flex-1 px-3 space-y-1">
         {navItems.map((item) => (
-          <Link key={item.href} href={item.href}>
+          <Link key={item.label} href={item.href}>
             <div className={cn(
               "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm font-medium",
               pathname === item.href 
@@ -73,7 +74,11 @@ export function Sidebar() {
           <Settings className="w-5 h-5" />
           Settings
         </Button>
-        <Button variant="ghost" className="w-full justify-start gap-3 rounded-xl hover:bg-white/5 text-rose-400/80 hover:text-rose-400 hover:bg-rose-400/5">
+        <Button 
+          variant="ghost" 
+          onClick={() => signOut()}
+          className="w-full justify-start gap-3 rounded-xl hover:bg-white/5 text-rose-400/80 hover:text-rose-400 hover:bg-rose-400/5"
+        >
           <LogOut className="w-5 h-5" />
           Logout
         </Button>
@@ -81,3 +86,4 @@ export function Sidebar() {
     </div>
   );
 }
+

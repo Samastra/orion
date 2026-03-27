@@ -46,7 +46,7 @@ export default function LandingPage() {
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
             <Link href="#features" className="hover:text-foreground transition-colors">Features</Link>
             <Link href="#courses" className="hover:text-foreground transition-colors">Courses</Link>
-            <Link href="/dashboard">
+            <Link href="/login">
               <Button variant="outline" className="rounded-full px-6 bg-white text-black hover:bg-neutral-200 border-none font-bold">
                 Get Started
               </Button>
@@ -83,7 +83,7 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-                <Link href="/dashboard" className="w-full sm:w-auto">
+                <Link href="/login" className="w-full sm:w-auto">
                   <Button size="lg" className="w-full h-14 px-10 bg-indigo-600 text-white hover:bg-indigo-500 rounded-2xl font-bold gap-2 text-lg shadow-xl shadow-indigo-500/20 group">
                     Try it now
                     <MoveRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />

@@ -16,6 +16,7 @@ import {
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { parseDocument } from "@/lib/document-parser";
+import { UserAvatar } from "@/components/auth/UserAvatar";
 
 export default function StudySessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -97,11 +98,7 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
           <div className="w-px h-4 bg-white/[0.06]" />
 
           {/* User Avatar */}
-          <button className="h-8 w-8 rounded-full border border-white/[0.08] bg-white/5 flex items-center justify-center overflow-hidden hover:border-indigo-500/50 transition-colors cursor-pointer group">
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-indigo-500/20 to-purple-500/20 group-hover:from-indigo-500/30 group-hover:to-purple-500/30">
-              <span className="text-[11px] font-bold text-indigo-400">JD</span>
-            </div>
-          </button>
+          <UserAvatar size="md" />
         </div>
       </header>
 
