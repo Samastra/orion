@@ -13,6 +13,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UserAvatar, useUser } from "@/components/auth/UserAvatar";
+import { createClient } from '@/lib/supabase/client';
 
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
@@ -21,6 +22,7 @@ export default function DashboardPage() {
   const nickname = user?.user_metadata?.nickname;
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Student';
   const major = user?.user_metadata?.major || 'General Studies';
+  const university = user?.user_metadata?.university;
   const greetingName = nickname || firstName;
 
   React.useEffect(() => {
@@ -53,9 +55,16 @@ export default function DashboardPage() {
               Welcome, {userLoading ? '...' : greetingName} 👋
             </h1>
             {!userLoading && (
-              <span className="mt-1 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[11px] font-bold text-indigo-400 uppercase tracking-widest">
-                {major}
-              </span>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[11px] font-bold text-indigo-400 uppercase tracking-widest">
+                  {major}
+                </span>
+                {university && (
+                  <span className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[11px] font-bold text-muted-foreground uppercase tracking-widest">
+                    {university}
+                  </span>
+                )}
+              </div>
             )}
           </div>
           <p className="text-muted-foreground text-lg">You&apos;ve completed <span className="text-emerald-500 font-semibold">85%</span> of your weekly study goals. Keep it up!</p>

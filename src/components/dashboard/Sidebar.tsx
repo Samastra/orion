@@ -28,10 +28,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { SettingsDialog } from "./SettingsDialog";
+
 export function Sidebar() {
   const pathname = usePathname();
   const { user, loading } = useUser();
   const [sessionLink, setSessionLink] = React.useState('/study/new');
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
 
   React.useEffect(() => {
     // Generate a unique session ID only on the client to avoid hydration mismatch
@@ -46,7 +49,7 @@ export function Sidebar() {
   ];
 
   const bottomNavItems = [
-    { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
+    { icon: Settings, label: 'Settings', onClick: () => setIsSettingsOpen(true) },
     { icon: MessageSquareWarning, label: 'Report Issue', href: '#' },
   ];
 
@@ -94,10 +97,21 @@ export function Sidebar() {
       <div className="p-4 border-t border-white/5 space-y-4">
         <div className="px-2 pb-2 space-y-1">
           {bottomNavItems.map((item) => (
-            <Link key={item.label} href={item.href} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-white/5 hover:text-foreground transition-all">
-              <item.icon className="w-4 h-4" />
-              {item.label}
-            </Link>
+            'href' in item ? (
+              <Link key={item.label} href={item.href as string} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-white/5 hover:text-foreground transition-all">
+                <item.icon className="w-4 h-4" />
+                {item.label}
+              </Link>
+            ) : (
+              <button 
+                key={item.label} 
+                onClick={item.onClick}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-white/5 hover:text-foreground transition-all text-left"
+              >
+                <item.icon className="w-4 h-4" />
+                {item.label}
+              </button>
+            )
           ))}
         </div>
 
@@ -120,7 +134,10 @@ export function Sidebar() {
             <DropdownMenuContent className="w-56 mb-2 bg-[#0a0a0b] border-white/10" align="end" side="right">
               <DropdownMenuLabel>My Account</DropdownMenuLabel>
               <DropdownMenuSeparator className="bg-white/5" />
-              <DropdownMenuItem className="cursor-pointer focus:bg-white/5">
+              <DropdownMenuItem 
+                className="cursor-pointer focus:bg-white/5"
+                onClick={() => setIsSettingsOpen(true)}
+              >
                 Profile Settings
               </DropdownMenuItem>
               <DropdownMenuItem className="cursor-pointer focus:bg-white/5">
@@ -138,6 +155,8 @@ export function Sidebar() {
           </DropdownMenu>
         </div>
       </div>
+
+      <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
     </div>
   );
 }

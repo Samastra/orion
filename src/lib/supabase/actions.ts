@@ -129,15 +129,53 @@ export async function updateProfile(formData: FormData) {
 
   const nickname = formData.get('nickname') as string;
   const major = formData.get('major') as string;
+  const university = formData.get('university') as string;
+  const aiFeedbackTone = formData.get('aiFeedbackTone') as string;
 
-  const { error } = await supabase
+  // Update profiles table
+  const { error: profileError } = await supabase
     .from('profiles')
-    .update({ nickname, major })
+    .update({ 
+      nickname, 
+      major, 
+      university, 
+      ai_feedback_tone: aiFeedbackTone 
+    })
     .eq('id', user.id);
 
-  if (error) return { error: error.message };
+  if (profileError) {
+    console.error('Profile update error:', profileError);
+    // If profiles table update fails (e.g. missing columns), we still try to update user metadata
+  }
 
-  revalidatePath('/dashboard');
+  // Update auth metadata for consistency and immediate UI updates
+  const { error: authError } = await supabase.auth.updateUser({
+    data: {
+      nickname,
+      major,
+      university,
+      ai_feedback_tone: aiFeedbackTone
+    }
+  });
+
+  if (authError) return { error: authError.message };
+
+  revalidatePath('/dashboard', 'layout');
+  return { success: true };
+}
+
+export async function updatePassword(formData: FormData) {
+  const supabase = await createClient();
+  const password = formData.get('password') as string;
+  const confirmPassword = formData.get('confirmPassword') as string;
+
+  if (password !== confirmPassword) {
+    return { error: 'Passwords do not match' };
+  }
+
+  const { error } = await supabase.auth.updateUser({ password });
+
+  if (error) return { error: error.message };
   return { success: true };
 }
 

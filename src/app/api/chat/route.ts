@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+
+const TONAL_INSTRUCTIONS: Record<string, string> = {
+  Encouraging: "Use an encouraging, supportive, and motivating tone. Celebrate the student's progress and use positive reinforcement.",
+  Direct: "Be extremely concise, direct, and to-the-point. Avoid fluff or excessive pleasantries. Focus solely on the facts and the answers.",
+  Academic: "Maintain a formal, rigorous, and scholarly tone. Use advanced terminology and provide deep theoretical context for all answers."
+};
 
 const SYSTEM_PROMPTS: Record<string, string> = {
   study: `You are a seasoned pharmaceutical sciences lecturer with deep expertise across pharmacology, pharmaceutical chemistry, pharmacognosy, pharmaceutics, clinical pharmacy, and pharmaceutical analysis. You communicate with the authority and precision of a university professor, but you're approachable and genuinely invested in your student's understanding.
@@ -66,6 +73,12 @@ Your role:
 export async function POST(req: NextRequest) {
   try {
     const { messages, context, mode = 'study' } = await req.json();
+    
+    // Get user preferences from metadata
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const feedbackTone = user?.user_metadata?.ai_feedback_tone || 'Encouraging';
+    const tonalInstruction = TONAL_INSTRUCTIONS[feedbackTone] || TONAL_INSTRUCTIONS.Encouraging;
 
     const apiKey = process.env['DEEPSEEK_API-KEY'];
     if (!apiKey) {
@@ -73,6 +86,9 @@ export async function POST(req: NextRequest) {
     }
 
     let systemContent = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.study;
+    
+    // Inject user preference into system prompt
+    systemContent += `\n\n[TONAL PREFERENCE]: ${tonalInstruction}`;
 
     if (context) {
       const docText = Array.isArray(context)

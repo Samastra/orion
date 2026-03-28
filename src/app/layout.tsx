@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   description: "Your intelligent study companion. Upload documents, get AI explanations, and master any subject.",
 };
 
+import { Toaster } from "@/components/ui/sonner";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -29,7 +31,10 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        {children}
+        <Toaster position="top-center" expand={false} richColors />
+      </body>
     </html>
   );
 }
