@@ -10,28 +10,50 @@ import {
   GraduationCap, 
   Settings, 
   LogOut,
-  Search
+  Search,
+  MessageSquareWarning,
+  MoreVertical
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { UserAvatar } from "@/components/auth/UserAvatar";
+import { UserAvatar, useUser } from "@/components/auth/UserAvatar";
 import { signOut } from "@/lib/supabase/actions";
-
-const navItems = [
-  { icon: LayoutDashboard, label: 'Overview', href: '/dashboard' },
-  { icon: BookOpen, label: 'Study Mode', href: `/study/session-${Date.now().toString(36)}` },
-  { icon: Target, label: 'Practice', href: '/dashboard/practice' },
-  { icon: GraduationCap, label: 'Courses', href: '/dashboard/courses' },
-];
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { user, loading } = useUser();
+  const [sessionLink, setSessionLink] = React.useState('/study/new');
+
+  React.useEffect(() => {
+    // Generate a unique session ID only on the client to avoid hydration mismatch
+    setSessionLink(`/study/session-${Math.random().toString(36).slice(2, 10)}`);
+  }, []);
+
+  const navItems = [
+    { icon: LayoutDashboard, label: 'Overview', href: '/dashboard' },
+    { icon: BookOpen, label: 'Study Mode', href: sessionLink },
+    { icon: Target, label: 'Practice', href: '/dashboard/practice' },
+    { icon: GraduationCap, label: 'Courses', href: '/dashboard/courses' },
+  ];
+
+  const bottomNavItems = [
+    { icon: Settings, label: 'Settings', href: '/dashboard/settings' },
+    { icon: MessageSquareWarning, label: 'Report Issue', href: '#' },
+  ];
 
   return (
     <div className="w-64 h-screen border-r border-white/5 bg-background flex flex-col fixed left-0 top-0">
       <div className="p-6 flex items-center gap-3">
-        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
+        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center border border-indigo-500/20">
           <GraduationCap className="text-white w-5 h-5" />
         </div>
         <span className="text-lg font-bold tracking-tight">StudyBuddy</span>
@@ -69,19 +91,52 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-white/5 space-y-2">
-        <Button variant="ghost" className="w-full justify-start gap-3 rounded-xl hover:bg-white/5 text-muted-foreground hover:text-foreground">
-          <Settings className="w-5 h-5" />
-          Settings
-        </Button>
-        <Button 
-          variant="ghost" 
-          onClick={() => signOut()}
-          className="w-full justify-start gap-3 rounded-xl hover:bg-white/5 text-rose-400/80 hover:text-rose-400 hover:bg-rose-400/5"
-        >
-          <LogOut className="w-5 h-5" />
-          Logout
-        </Button>
+      <div className="p-4 border-t border-white/5 space-y-4">
+        <div className="px-2 pb-2 space-y-1">
+          {bottomNavItems.map((item) => (
+            <Link key={item.label} href={item.href} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:bg-white/5 hover:text-foreground transition-all">
+              <item.icon className="w-4 h-4" />
+              {item.label}
+            </Link>
+          ))}
+        </div>
+
+        <div className="pt-2 border-t border-white/5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-all text-left group">
+                <UserAvatar size="sm" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold truncate">
+                    {loading ? '...' : (user?.user_metadata?.nickname || user?.user_metadata?.full_name || 'User')}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground truncate uppercase tracking-tighter">
+                    {user?.email}
+                  </p>
+                </div>
+                <MoreVertical className="w-4 h-4 text-muted-foreground/40 group-hover:text-foreground transition-colors" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56 mb-2 bg-[#0a0a0b] border-white/10" align="end" side="right">
+              <DropdownMenuLabel>My Account</DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuItem className="cursor-pointer focus:bg-white/5">
+                Profile Settings
+              </DropdownMenuItem>
+              <DropdownMenuItem className="cursor-pointer focus:bg-white/5">
+                Support
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-white/5" />
+              <DropdownMenuItem 
+                onClick={() => signOut()}
+                className="cursor-pointer focus:bg-rose-500/10 text-rose-400 focus:text-rose-400"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   );

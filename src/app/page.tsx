@@ -37,12 +37,12 @@ export default function LandingPage() {
       {/* Navigation */}
       <nav className="fixed top-0 w-full z-50 border-b border-foreground/5 bg-background/50 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <GraduationCap className="text-white w-6 h-6" />
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center border border-indigo-500/20">
+                <GraduationCap className="text-white w-7 h-7" />
+              </div>
+              <span className="text-2xl font-bold tracking-tight">StudyBuddy</span>
             </div>
-            <span className="text-xl font-bold tracking-tight">StudyBuddy</span>
-          </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
             <Link href="#features" className="hover:text-foreground transition-colors">Features</Link>
             <Link href="#courses" className="hover:text-foreground transition-colors">Courses</Link>
@@ -84,12 +84,12 @@ export default function LandingPage() {
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
                 <Link href="/login" className="w-full sm:w-auto">
-                  <Button size="lg" className="w-full h-14 px-10 bg-indigo-600 text-white hover:bg-indigo-500 rounded-2xl font-bold gap-2 text-lg shadow-xl shadow-indigo-500/20 group">
+                  <Button size="lg" className="w-full h-14 px-10 bg-indigo-600 text-white hover:bg-indigo-500 rounded-2xl font-bold gap-2 text-lg shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none group">
                     Try it now
                     <MoveRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
-                <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-10 glass hover:bg-white/10 rounded-2xl font-bold text-lg border-white/10">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-10 glass hover:bg-white/10 rounded-2xl font-bold text-lg border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none transition-all">
                   View Demo
                 </Button>
               </div>

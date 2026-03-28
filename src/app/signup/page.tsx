@@ -30,7 +30,7 @@ export default function SignupPage() {
       <div className="hidden lg:flex w-1/2 bg-gradient-to-br from-indigo-950 via-background to-background items-center justify-center p-16 relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(99,102,241,0.08),transparent_60%)]" />
         <div className="relative z-10 max-w-md space-y-8">
-          <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-xl shadow-indigo-500/20">
+          <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-500/20">
             <GraduationCap className="w-8 h-8 text-white" />
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-foreground">Join <span className="text-indigo-400">StudyBuddy</span></h1>
@@ -148,7 +148,7 @@ export default function SignupPage() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-[14px] gap-2 transition-all shadow-lg shadow-indigo-500/20 hover:shadow-indigo-500/30 mt-2"
+              className="w-full h-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold text-[14px] gap-2 transition-all shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none mt-2"
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />

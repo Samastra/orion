@@ -15,15 +15,29 @@ import { Button } from "@/components/ui/button";
 import { UserAvatar, useUser } from "@/components/auth/UserAvatar";
 
 export default function DashboardPage() {
-  const { user, loading } = useUser();
+  const { user, loading: userLoading } = useUser();
+  const [courseCount, setCourseCount] = React.useState<number | null>(null);
+  
   const nickname = user?.user_metadata?.nickname;
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Student';
   const major = user?.user_metadata?.major || 'General Studies';
-  
   const greetingName = nickname || firstName;
 
+  React.useEffect(() => {
+    const fetchCourseCount = async () => {
+      const supabase = createClient();
+      const { count, error } = await supabase
+        .from('courses')
+        .select('*', { count: 'exact', head: true });
+      
+      if (!error) setCourseCount(count);
+    };
+
+    if (user) fetchCourseCount();
+  }, [user]);
+
   const stats = [
-    { label: 'Courses Active', value: '12', icon: BookOpen, color: 'text-indigo-400' },
+    { label: 'Courses Active', value: courseCount !== null ? courseCount.toString() : '...', icon: BookOpen, color: 'text-indigo-400' },
     { label: 'Study Hours', value: '48.5h', icon: Clock, color: 'text-violet-400' },
     { label: 'Practice Score', value: '92%', icon: Trophy, color: 'text-emerald-400' },
     { label: 'Daily Streak', value: '14 Days', icon: TrendingUp, color: 'text-rose-400' },
@@ -36,9 +50,9 @@ export default function DashboardPage() {
         <div className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="text-4xl font-bold tracking-tight">
-              Welcome, {loading ? '...' : greetingName} 👋
+              Welcome, {userLoading ? '...' : greetingName} 👋
             </h1>
-            {!loading && (
+            {!userLoading && (
               <span className="mt-1 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-[11px] font-bold text-indigo-400 uppercase tracking-widest">
                 {major}
               </span>

@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, Trash2 } from 'lucide-react';
 
 export interface FlashcardData {
-  id: number;
+  id: string | number;
   front: string;
   back: string;
   category: string;
@@ -12,23 +12,39 @@ export interface FlashcardData {
 
 interface FlashCardProps {
   card: FlashcardData;
-  cardNumber: number;
-  total: number;
+  cardNumber?: number;
+  total?: number;
+  onDelete?: (id: string | number) => void | Promise<void>;
 }
 
-export function FlashCard({ card, cardNumber, total }: FlashCardProps) {
+export function FlashCard({ card, cardNumber, total, onDelete }: FlashCardProps) {
   const [flipped, setFlipped] = useState(false);
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onDelete) onDelete(card.id);
+  };
 
   return (
     <div className="w-full max-w-lg mx-auto" style={{ perspective: '1000px' }}>
-      {/* Card number */}
+      {/* Card header */}
       <div className="flex items-center justify-between mb-3 px-1">
         <span className="text-[10px] font-semibold text-indigo-400/60 uppercase tracking-widest">
-          Card {cardNumber} of {total}
+          {cardNumber && total ? `Card ${cardNumber} of ${total}` : 'Flashcard'}
         </span>
-        <span className="text-[10px] font-medium text-muted-foreground/30 bg-white/[0.03] px-2 py-0.5 rounded border border-white/[0.04]">
-          {card.category}
-        </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-medium text-muted-foreground/30 bg-white/[0.03] px-2 py-0.5 rounded border border-white/[0.04]">
+            {card.category}
+          </span>
+          {onDelete && (
+            <button 
+              onClick={handleDelete}
+              className="p-1 text-muted-foreground/20 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Flip container */}
