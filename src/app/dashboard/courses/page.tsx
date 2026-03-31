@@ -224,11 +224,11 @@ export default function CoursesPage() {
 
                 <form onSubmit={handleCreateCourse} className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest ml-1">Course Name</label>
+                    <label className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest ml-1">Course Code</label>
                     <input
                       name="name"
                       required
-                      placeholder="e.g. Organic Chemistry"
+                      placeholder="e.g. ANA 201"
                       className="w-full h-12 bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/30 transition-all"
                     />
                   </div>

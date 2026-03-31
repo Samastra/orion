@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ListChecks, Layers, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { MCQSession } from './MCQSession';
@@ -12,9 +12,11 @@ type PracticeType = 'mcq' | 'flashcard';
 
 interface PracticeViewProps {
   context: string | string[] | null;
+  courseId?: string;
+  onQuestionsGenerated?: (questions: any[], type: PracticeType) => void;
 }
 
-export function PracticeView({ context }: PracticeViewProps) {
+export function PracticeView({ context, courseId, onQuestionsGenerated }: PracticeViewProps) {
   const [practiceType, setPracticeType] = useState<PracticeType>('mcq');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,9 +47,11 @@ export function PracticeView({ context }: PracticeViewProps) {
       if (practiceType === 'mcq') {
         setMcqQuestions(data.items);
         setFlashcards(null);
+        onQuestionsGenerated?.(data.items, 'mcq');
       } else {
         setFlashcards(data.items);
         setMcqQuestions(null);
+        onQuestionsGenerated?.(data.items, 'flashcard');
       }
     } catch (err: any) {
       console.error('Generation failed:', err);

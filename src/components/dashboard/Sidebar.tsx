@@ -42,7 +42,7 @@ export function Sidebar() {
   }, []);
 
   const navItems = [
-    { icon: LayoutDashboard, label: 'Overview', href: '/dashboard' },
+    { icon: LayoutDashboard, label: 'Home', href: '/dashboard' },
     { icon: BookOpen, label: 'Study Mode', href: sessionLink },
     { icon: Target, label: 'Practice', href: '/dashboard/practice' },
     { icon: GraduationCap, label: 'Courses', href: '/dashboard/courses' },

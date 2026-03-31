@@ -5,7 +5,7 @@ export async function extractTextFromPDF(file: File): Promise<string[]> {
   // Dynamic import to avoid SSR DOMMatrix errors
   // @ts-ignore
   const pdfjs = await import('pdfjs-dist/legacy/build/pdf.mjs');
-  pdfjs.GlobalWorkerOptions.workerSrc = '';
+  pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@5.5.207/build/pdf.worker.min.mjs`;
   
   const arrayBuffer = await file.arrayBuffer();
   const loadingTask = pdfjs.getDocument({ data: arrayBuffer });

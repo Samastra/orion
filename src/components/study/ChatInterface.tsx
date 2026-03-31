@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Mic, Plus, Trash2, BookOpen, Dumbbell, ChevronDown } from 'lucide-react';
+import { Send, Mic, Plus, BookOpen, Dumbbell, ChevronDown, Square } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
@@ -22,15 +23,77 @@ interface ChatInterfaceProps {
   context?: string | string[] | null;
   fileName?: string;
   selectionAction?: { action: string; text: string } | null;
+  courseId?: string;
 }
 
-const INITIAL_GREETING = "Upload a document to get started. I can explain concepts, summarize sections, and help you master the material.";
+const INITIAL_GREETING = "Ready to master this material? Ask me to explain any concept from the text, or switch to **Practice** mode to test what you've learned so far.";
 
 function ts() {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-export function ChatInterface({ sessionId, context, fileName, selectionAction }: ChatInterfaceProps) {
+// ─── Mode Toggle Component ──────────────────────────────────────────
+interface ModeToggleProps {
+  mode: StudyMode;
+  showMenu: boolean;
+  setShowMenu: (v: boolean) => void;
+  switchMode: (m: StudyMode) => void;
+  menuRef: React.RefObject<HTMLDivElement | null>;
+}
+
+function ModeToggle({ mode, showMenu, setShowMenu, switchMode, menuRef }: ModeToggleProps) {
+  const ModeIcon = mode === 'practice' ? Dumbbell : BookOpen;
+  const label = mode === 'practice' ? 'Practice' : 'Study';
+
+  return (
+    <div className="relative" ref={menuRef}>
+      <button
+        onClick={() => setShowMenu(!showMenu)}
+        className={`flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+          mode === 'practice'
+            ? 'text-indigo-400/80 bg-indigo-500/10 border-indigo-500/15 hover:bg-indigo-500/15'
+            : 'text-muted-foreground/40 bg-white/[0.03] border-white/[0.04] hover:bg-white/[0.06]'
+        }`}
+      >
+        <ModeIcon className="w-3 h-3" />
+        {label}
+        <ChevronDown className="w-2.5 h-2.5" />
+      </button>
+
+      {showMenu && (
+        <div className="absolute bottom-full left-0 mb-2 w-48 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/60 overflow-hidden z-[200]">
+          <button
+            onClick={() => switchMode('study')}
+            className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors cursor-pointer ${mode === 'study' ? 'bg-indigo-500/10' : 'hover:bg-white/5'}`}
+          >
+            <BookOpen className={`w-4 h-4 ${mode === 'study' ? 'text-indigo-400' : 'text-muted-foreground/50'}`} />
+            <div>
+              <div className={`text-[12px] font-semibold ${mode === 'study' ? 'text-indigo-400' : 'text-foreground/80'}`}>Study</div>
+              <div className="text-[10px] text-muted-foreground/40">Learn & understand</div>
+            </div>
+          </button>
+          <div className="h-px bg-white/[0.06]" />
+          <button
+            onClick={() => switchMode('practice')}
+            className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors cursor-pointer ${mode === 'practice' ? 'bg-indigo-500/10' : 'hover:bg-white/5'}`}
+          >
+            <Dumbbell className={`w-4 h-4 ${mode === 'practice' ? 'text-indigo-400' : 'text-muted-foreground/50'}`} />
+            <div>
+              <div className={`text-[12px] font-semibold ${mode === 'practice' ? 'text-indigo-400' : 'text-foreground/80'}`}>Practice</div>
+              <div className="text-[10px] text-muted-foreground/40">MCQs & Flashcards</div>
+            </div>
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Chat Interface ────────────────────────────────────────────
+export const ChatInterface = React.forwardRef<
+  { clearChat: () => void },
+  ChatInterfaceProps
+>(({ sessionId, context, fileName, selectionAction, courseId }, ref) => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -39,6 +102,7 @@ export function ChatInterface({ sessionId, context, fileName, selectionAction }:
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modeMenuRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -70,23 +134,39 @@ export function ChatInterface({ sessionId, context, fileName, selectionAction }:
     }
   }, [sessionId, messages]);
 
-  // Send to DeepSeek
+  // Send to AI
   const sendToAI = async (allMessages: Message[]) => {
     setIsLoading(true);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: allMessages, context, mode: 'study' }),
+        signal: controller.signal,
       });
+
       if (!res.ok) throw new Error(`API error: ${res.status}`);
       const data = await res.json();
       setMessages(prev => [...prev, { role: 'ai', content: data.content, timestamp: ts() }]);
-    } catch (error) {
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('AI request cancelled');
+        return;
+      }
       console.error('AI error:', error);
       setMessages(prev => [...prev, { role: 'ai', content: '⚠️ Connection failed. Check your API key and try again.', timestamp: ts() }]);
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
   };
 
@@ -106,7 +186,7 @@ export function ChatInterface({ sessionId, context, fileName, selectionAction }:
   // Document greeting
   useEffect(() => {
     if (fileName && context && messages.length <= 1) {
-      setMessages([{ role: 'ai', content: 'Document loaded. Ask me anything or switch to **Practice** mode to test yourself.', timestamp: ts() }]);
+      setMessages([{ role: 'ai', content: INITIAL_GREETING, timestamp: ts() }]);
     }
   }, [fileName, context, messages.length]);
 
@@ -136,30 +216,17 @@ export function ChatInterface({ sessionId, context, fileName, selectionAction }:
     if (sessionId) localStorage.removeItem(`study-chat-${sessionId}`);
   };
 
-  const ModeIcon = mode === 'practice' ? Dumbbell : BookOpen;
+  // Expose clearChat to parent via ref
+  React.useImperativeHandle(ref, () => ({
+    clearChat,
+  }));
 
   return (
-    <div className="h-full flex flex-col bg-background min-h-0">
-      {/* Header */}
-      <div className="h-10 border-b border-white/[0.06] px-3 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-1.5">
-          <ModeIcon className="w-3.5 h-3.5 text-indigo-400" />
-          <span className="text-[11px] font-semibold text-muted-foreground/70 tracking-wide">
-            {mode === 'practice' ? 'Practice Mode' : 'AI Tutor'}
-          </span>
-        </div>
-        {mode === 'study' && (
-          <Button onClick={clearChat} variant="ghost" size="icon" className="h-7 w-7 rounded-md text-muted-foreground/40 hover:text-rose-400 hover:bg-rose-400/5">
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
-        )}
-      </div>
-
-      {/* PRACTICE MODE — Interactive PracticeView */}
+    <div className="h-full flex flex-col bg-background min-h-0 border-l border-white/[0.06]">
+      {/* PRACTICE MODE */}
       {mode === 'practice' ? (
         <div className="flex-1 min-h-0 flex flex-col">
-          <PracticeView context={context ?? null} />
-          {/* Bottom mode toggle (no input bar in practice mode) */}
+          <PracticeView context={context ?? null} courseId={courseId} />
           <div className="shrink-0 p-3 pt-0">
             <ModeToggle mode={mode} showMenu={showModeMenu} setShowMenu={setShowModeMenu} switchMode={switchMode} menuRef={modeMenuRef} />
           </div>
@@ -223,22 +290,31 @@ export function ChatInterface({ sessionId, context, fileName, selectionAction }:
               />
               <div className="flex items-center justify-between px-2 pb-2">
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-muted-foreground/30 hover:text-muted-foreground hover:bg-white/5">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-xl text-muted-foreground/30 hover:text-muted-foreground hover:bg-white/5">
                     <Plus className="w-4 h-4" />
                   </Button>
                   <ModeToggle mode={mode} showMenu={showModeMenu} setShowMenu={setShowModeMenu} switchMode={switchMode} menuRef={modeMenuRef} />
                 </div>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-muted-foreground/30 hover:text-muted-foreground hover:bg-white/5">
+                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-xl text-muted-foreground/30 hover:text-muted-foreground hover:bg-white/5">
                     <Mic className="w-3.5 h-3.5" />
                   </Button>
                   <Button
-                    onClick={handleSend}
-                    disabled={isLoading || !input.trim()}
+                    onClick={isLoading ? handleStop : handleSend}
+                    disabled={!isLoading && !input.trim()}
                     size="icon"
-                    className="h-7 w-7 rounded-lg transition-all disabled:opacity-30 disabled:bg-white/5 bg-indigo-600 hover:bg-indigo-500"
+                    className={cn(
+                      "h-7 w-7 rounded-xl transition-all",
+                      isLoading 
+                        ? "bg-rose-600 hover:bg-rose-500 animate-in fade-in zoom-in duration-200" 
+                        : "bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:bg-white/5"
+                    )}
                   >
-                    <Send className="w-3.5 h-3.5 text-white" />
+                    {isLoading ? (
+                      <Square className="w-2.5 h-2.5 text-white fill-white" />
+                    ) : (
+                      <Send className="w-3.5 h-3.5 text-white" />
+                    )}
                   </Button>
                 </div>
               </div>
@@ -248,61 +324,6 @@ export function ChatInterface({ sessionId, context, fileName, selectionAction }:
       )}
     </div>
   );
-}
+});
 
-// ─── Extracted Mode Toggle ──────────────────────────────────────────
-interface ModeToggleProps {
-  mode: StudyMode;
-  showMenu: boolean;
-  setShowMenu: (v: boolean) => void;
-  switchMode: (m: StudyMode) => void;
-  menuRef: React.RefObject<HTMLDivElement | null>;
-}
-
-function ModeToggle({ mode, showMenu, setShowMenu, switchMode, menuRef }: ModeToggleProps) {
-  const ModeIcon = mode === 'practice' ? Dumbbell : BookOpen;
-  const label = mode === 'practice' ? 'Practice' : 'Study';
-
-  return (
-    <div className="relative" ref={menuRef}>
-      <button
-        onClick={() => setShowMenu(!showMenu)}
-        className={`flex items-center gap-1.5 text-[10px] font-semibold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
-          mode === 'practice'
-            ? 'text-indigo-400/80 bg-indigo-500/10 border-indigo-500/15 hover:bg-indigo-500/15'
-            : 'text-muted-foreground/40 bg-white/[0.03] border-white/[0.04] hover:bg-white/[0.06]'
-        }`}
-      >
-        <ModeIcon className="w-3 h-3" />
-        {label}
-        <ChevronDown className="w-2.5 h-2.5" />
-      </button>
-
-      {showMenu && (
-        <div className="absolute bottom-full left-0 mb-2 w-48 bg-neutral-900 border border-white/10 rounded-xl shadow-2xl shadow-black/60 overflow-hidden z-[200]">
-          <button
-            onClick={() => switchMode('study')}
-            className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors cursor-pointer ${mode === 'study' ? 'bg-indigo-500/10' : 'hover:bg-white/5'}`}
-          >
-            <BookOpen className={`w-4 h-4 ${mode === 'study' ? 'text-indigo-400' : 'text-muted-foreground/50'}`} />
-            <div>
-              <div className={`text-[12px] font-semibold ${mode === 'study' ? 'text-indigo-400' : 'text-foreground/80'}`}>Study</div>
-              <div className="text-[10px] text-muted-foreground/40">Learn & understand</div>
-            </div>
-          </button>
-          <div className="h-px bg-white/[0.06]" />
-          <button
-            onClick={() => switchMode('practice')}
-            className={`w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors cursor-pointer ${mode === 'practice' ? 'bg-indigo-500/10' : 'hover:bg-white/5'}`}
-          >
-            <Dumbbell className={`w-4 h-4 ${mode === 'practice' ? 'text-indigo-400' : 'text-muted-foreground/50'}`} />
-            <div>
-              <div className={`text-[12px] font-semibold ${mode === 'practice' ? 'text-indigo-400' : 'text-foreground/80'}`}>Practice</div>
-              <div className="text-[10px] text-muted-foreground/40">MCQs & Flashcards</div>
-            </div>
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
+ChatInterface.displayName = 'ChatInterface';
