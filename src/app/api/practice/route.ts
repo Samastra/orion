@@ -42,7 +42,7 @@ Rules:
 
 export async function POST(req: NextRequest) {
   try {
-    const { context, type = 'mcq' } = await req.json();
+    const { context, type = 'mcq', topicFocus } = await req.json();
 
     const apiKey = process.env['DEEPSEEK_API-KEY'];
     if (!apiKey) {
@@ -60,6 +60,10 @@ export async function POST(req: NextRequest) {
         ? docText.slice(0, 12000) + '\n\n[Document truncated...]'
         : docText;
       systemContent += `\n\n--- DOCUMENT CONTENT ---\n${truncated}\n--- END DOCUMENT ---`;
+    }
+
+    if (topicFocus && topicFocus.trim()) {
+      systemContent += `\n\nIMPORTANT: Focus ALL questions specifically on this topic: "${topicFocus.trim()}". Only generate questions directly related to this topic from the document content. Do not generate questions about unrelated sections.`;
     }
 
     const response = await fetch(DEEPSEEK_API_URL, {

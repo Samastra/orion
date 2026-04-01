@@ -184,24 +184,134 @@ export function DocumentViewer({ file, content, isLoading, onUpload, onSelection
               </div>
             </div>
             
-            <article className="prose prose-invert prose-indigo max-w-none 
-              prose-h1:text-4xl prose-h1:font-black prose-h1:tracking-tight prose-h1:mb-12 prose-h1:mt-4
-              prose-h2:text-2xl prose-h2:font-bold prose-h2:tracking-tight prose-h2:mt-16 prose-h2:mb-8 prose-h2:text-indigo-400/90 prose-h2:border-b prose-h2:border-white/5 prose-h2:pb-4
-              prose-h3:text-lg prose-h3:font-bold prose-h3:mt-10 prose-h3:mb-5
-              prose-p:text-foreground/80 prose-p:leading-[1.9] prose-p:text-[16px] prose-p:mb-8
-              prose-li:text-foreground/80 prose-li:text-[16px] prose-li:my-3
-              prose-strong:text-indigo-400/90 prose-strong:font-bold
-              prose-table:w-full prose-table:border-collapse prose-table:my-10 prose-table:bg-white/[0.01] prose-table:rounded-2xl prose-table:overflow-hidden
-              prose-th:bg-white/5 prose-th:p-4 prose-th:text-left prose-th:text-indigo-400 prose-th:font-bold prose-th:border prose-th:border-white/10 prose-th:uppercase prose-th:text-[11px] prose-th:tracking-widest
-              prose-td:p-4 prose-td:border prose-td:border-white/5 prose-td:text-[14px]">
+            <style>{`
+              .study-guide-article h1 {
+                font-size: 28px !important;
+                font-weight: 900 !important;
+                letter-spacing: -0.02em !important;
+                color: rgba(255,255,255,0.95) !important;
+                margin-top: 8px !important;
+                margin-bottom: 16px !important;
+                line-height: 1.25 !important;
+              }
+              .study-guide-article h2 {
+                font-size: 22px !important;
+                font-weight: 700 !important;
+                letter-spacing: -0.01em !important;
+                color: rgba(129,140,248,0.9) !important;
+                margin-top: 48px !important;
+                margin-bottom: 20px !important;
+                padding-bottom: 12px !important;
+                border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+                line-height: 1.3 !important;
+              }
+              .study-guide-article h3 {
+                font-size: 18px !important;
+                font-weight: 700 !important;
+                color: rgba(255,255,255,0.88) !important;
+                margin-top: 36px !important;
+                margin-bottom: 14px !important;
+                line-height: 1.35 !important;
+              }
+              .study-guide-article h4 {
+                font-size: 15px !important;
+                font-weight: 600 !important;
+                color: rgba(255,255,255,0.75) !important;
+                margin-top: 28px !important;
+                margin-bottom: 10px !important;
+                line-height: 1.4 !important;
+              }
+              .study-guide-article p {
+                font-size: 15px !important;
+                line-height: 1.9 !important;
+                color: rgba(255,255,255,0.72) !important;
+                margin-bottom: 24px !important;
+              }
+              .study-guide-article ul,
+              .study-guide-article ol {
+                margin-top: 16px !important;
+                margin-bottom: 24px !important;
+                padding-left: 24px !important;
+              }
+              .study-guide-article li {
+                font-size: 15px !important;
+                line-height: 1.8 !important;
+                color: rgba(255,255,255,0.72) !important;
+                margin-top: 6px !important;
+                margin-bottom: 6px !important;
+              }
+              .study-guide-article strong {
+                color: rgba(255,255,255,0.95) !important;
+                font-weight: 700 !important;
+              }
+              .study-guide-article code {
+                background: rgba(255,255,255,0.06);
+                padding: 2px 6px;
+                border-radius: 4px;
+                font-size: 13px;
+                color: rgba(129,140,248,0.85);
+              }
+              .study-guide-article a {
+                color: rgba(129,140,248,0.9) !important;
+                text-decoration: none !important;
+              }
+              .study-guide-article a:hover {
+                text-decoration: underline !important;
+              }
+              .study-guide-article .katex-display {
+                margin: 32px 0 !important;
+                padding: 16px 24px !important;
+                background: rgba(255,255,255,0.02) !important;
+                border: 1px solid rgba(255,255,255,0.06) !important;
+                border-radius: 12px !important;
+              }
+              .study-guide-article .katex {
+                font-size: 1.05em !important;
+              }
+              .study-guide-article hr {
+                border: none !important;
+                height: 1px !important;
+                background: linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent) !important;
+                margin: 48px 0 !important;
+              }
+            `}</style>
+
+            <article className="study-guide-article prose prose-invert max-w-none">
               <ReactMarkdown
                 remarkPlugins={[remarkMath, remarkGfm]}
                 rehypePlugins={[rehypeKatex]}
                 components={{
-                  // Custom rendering for blockquotes to make them clinical pearls
+                  // Blockquote — clinical pearls / key takeaways
                   blockquote: ({node, ...props}) => (
-                    <blockquote className="border-l-4 border-indigo-500/50 bg-indigo-500/5 px-8 py-6 rounded-r-2xl italic my-12" {...props} />
-                  )
+                    <blockquote className="border-l-4 border-indigo-500/50 bg-indigo-500/[0.06] px-6 py-5 rounded-r-xl italic my-8 [&_p]:text-indigo-200/80 [&_p]:mb-0 [&_strong]:text-indigo-300 [&_strong]:not-italic" {...props} />
+                  ),
+                  // Table wrapper — rounded card with border
+                  table: ({node, ...props}) => (
+                    <div className="my-8 rounded-xl border border-white/[0.08] overflow-hidden bg-white/[0.015]">
+                      <table className="w-full border-collapse m-0" {...props} />
+                    </div>
+                  ),
+                  thead: ({node, ...props}) => (
+                    <thead className="bg-white/[0.06]" {...props} />
+                  ),
+                  th: ({node, ...props}) => (
+                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-indigo-400 uppercase tracking-widest border-b border-white/[0.08]" {...props} />
+                  ),
+                  td: ({node, ...props}) => (
+                    <td className="px-5 py-3.5 text-[14px] text-foreground/75 border-b border-white/[0.04] leading-relaxed" {...props} />
+                  ),
+                  tr: ({node, ...props}) => {
+                    // Cast children to array and check if first child is a th to detect header rows
+                    const children = React.Children.toArray((props as any).children);
+                    const isHeader = children.length > 0 && typeof children[0] === 'object' && (children[0] as any)?.type === 'th';
+                    return (
+                      <tr className={isHeader ? '' : 'even:bg-white/[0.02] hover:bg-white/[0.04] transition-colors'} {...props} />
+                    );
+                  },
+                  // Horizontal rule — subtle section divider
+                  hr: ({node, ...props}) => (
+                    <hr className="my-12 border-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" {...props} />
+                  ),
                 }}
               >
                 {content as string}

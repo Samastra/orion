@@ -4,6 +4,105 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { headers } from 'next/headers';
+import crypto from 'crypto';
+
+/**
+ * MCQ PERFORMANCE TRACKING
+ */
+
+export async function saveMCQAttempt(courseId: string, questionText: string, isCorrect: boolean) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { error: 'Not authenticated' };
+
+  // Create a unique hash for the question to identify it across sessions
+  const questionHash = crypto.createHash('sha256').update(questionText).digest('hex');
+
+  // Check if this user has attempted this exact question before in this course
+  const { data: existingAttempt, error: checkError } = await supabase
+    .from('practice_attempts')
+    .select('id, attempt_number')
+    .eq('user_id', user.id)
+    .eq('course_id', courseId)
+    .eq('question_hash', questionHash)
+    .order('attempt_number', { ascending: false })
+    .limit(1);
+
+  if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "not found"
+    console.error('Error checking attempts:', checkError);
+  }
+
+  const nextAttemptNumber = existingAttempt && existingAttempt.length > 0 
+    ? existingAttempt[0].attempt_number + 1 
+    : 1;
+
+  const { data, error } = await supabase
+    .from('practice_attempts')
+    .insert([
+      {
+        user_id: user.id,
+        course_id: courseId,
+        question_hash: questionHash,
+        is_correct: isCorrect,
+        attempt_number: nextAttemptNumber,
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+  return { data };
+}
+
+export async function getPerformanceData() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { error: 'Not authenticated' };
+
+  // 1. Fetch ALL courses for this user
+  const { data: allCourses, error: courseError } = await supabase
+    .from('courses')
+    .select('id, name')
+    .eq('user_id', user.id);
+
+  if (courseError) return { error: courseError.message };
+
+  // 2. Fetch only FIRST attempts for all courses
+  const { data: attempts, error: attemptError } = await supabase
+    .from('practice_attempts')
+    .select('is_correct, course_id')
+    .eq('user_id', user.id)
+    .eq('attempt_number', 1);
+
+  if (attemptError) return { error: attemptError.message };
+
+  // Initialize stats with all courses (starting at 0)
+  const stats: Record<string, { name: string; correct: number; total: number }> = {};
+  allCourses.forEach(c => {
+    stats[c.id] = { name: c.name, correct: 0, total: 0 };
+  });
+
+  // Aggregate stats per course
+  attempts.forEach((attempt: any) => {
+    if (stats[attempt.course_id]) {
+      stats[attempt.course_id].total += 1;
+      if (attempt.is_correct) {
+        stats[attempt.course_id].correct += 1;
+      }
+    }
+  });
+
+  // Format for the chart
+  const chartData = Object.values(stats).map(s => ({
+    name: s.name,
+    score: s.total > 0 ? Math.round((s.correct / s.total) * 100) : 0,
+    totalQuestions: s.total
+  }));
+
+  return { data: chartData };
+}
 
 export async function signInWithGoogle() {
   const supabase = await createClient();
@@ -217,6 +316,24 @@ export async function createNote(formData: FormData) {
     .insert([
       { course_id: courseId, user_id: user.id, title, content }
     ])
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+  revalidatePath(`/dashboard/courses/${courseId}`);
+  return { data };
+}
+
+export async function updateNote(id: string, title: string, content: string, courseId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  const { data, error } = await supabase
+    .from('notes')
+    .update({ title, content, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', user.id)
     .select()
     .single();
 

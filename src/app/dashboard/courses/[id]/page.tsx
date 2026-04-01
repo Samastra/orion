@@ -217,7 +217,7 @@ export default function CourseDetailPage() {
                 className="bg-white/5 hover:bg-white/10 text-white rounded-xl h-11 px-5 font-bold gap-2 border border-white/10 text-sm"
               >
                 {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                Upload PDF
+                Upload Doc
               </Button>
               <Button
                 onClick={() => setIsCreatingNote(true)}

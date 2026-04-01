@@ -13,10 +13,11 @@ type PracticeType = 'mcq' | 'flashcard';
 interface PracticeViewProps {
   context: string | string[] | null;
   courseId?: string;
+  topicFocus?: string;
   onQuestionsGenerated?: (questions: any[], type: PracticeType) => void;
 }
 
-export function PracticeView({ context, courseId, onQuestionsGenerated }: PracticeViewProps) {
+export function PracticeView({ context, courseId, topicFocus, onQuestionsGenerated }: PracticeViewProps) {
   const [practiceType, setPracticeType] = useState<PracticeType>('mcq');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +35,7 @@ export function PracticeView({ context, courseId, onQuestionsGenerated }: Practi
       const res = await fetch('/api/practice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ context, type: practiceType }),
+        body: JSON.stringify({ context, type: practiceType, topicFocus }),
       });
 
       if (!res.ok) {
@@ -73,7 +74,7 @@ export function PracticeView({ context, courseId, onQuestionsGenerated }: Practi
       <div className="h-full flex flex-col">
         <PracticeTabs type={practiceType} setType={(t) => { setPracticeType(t); reset(); }} />
         <div className="flex-1 min-h-0">
-          <MCQSession questions={mcqQuestions} onReset={generate} />
+          <MCQSession questions={mcqQuestions} onReset={generate} courseId={courseId} />
         </div>
       </div>
     );

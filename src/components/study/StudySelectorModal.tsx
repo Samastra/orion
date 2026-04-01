@@ -75,14 +75,14 @@ export function StudySelectorModal({ open, onSelect }: StudySelectorModalProps) 
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-[600px] h-[500px] p-0 overflow-hidden bg-[#0a0a0b] border-white/10 shadow-2xl rounded-2xl">
+      <DialogContent className="sm:max-w-[600px] h-[500px] p-0 overflow-hidden bg-[#0a0a0b] border-white/10 shadow-2xl rounded-2xl flex flex-col gap-0">
         <DialogTitle className="sr-only">Study Selection</DialogTitle>
         <DialogDescription className="sr-only">
           Choose a course and note to begin your study session.
         </DialogDescription>
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col flex-1 min-h-0">
           {/* Header with Step indicator */}
-          <div className="p-6 border-b border-white/5 bg-white/[0.01]">
+          <div className="p-6 border-b border-white/5 bg-white/[0.01] shrink-0">
              <div className="flex items-center justify-between mb-4">
                <div className="flex items-center gap-3">
                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
@@ -130,7 +130,7 @@ export function StudySelectorModal({ open, onSelect }: StudySelectorModalProps) 
              </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto p-4 custom-scrollbar min-h-0">
             {loading ? (
               <div className="h-full flex items-center justify-center opacity-50">
                 <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />

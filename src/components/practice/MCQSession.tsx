@@ -4,23 +4,29 @@ import React, { useState } from 'react';
 import { MCQCard, MCQQuestion } from './MCQCard';
 import { ChevronLeft, ChevronRight, Trophy, RotateCcw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { saveMCQAttempt } from "@/lib/supabase/actions";
+import { toast } from "sonner";
 
 interface MCQSessionProps {
   questions: MCQQuestion[];
   onReset: () => void;
+  courseId?: string;
 }
 
-export function MCQSession({ questions, onReset }: MCQSessionProps) {
+export function MCQSession({ questions, onReset, courseId }: MCQSessionProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState<boolean[]>(new Array(questions.length).fill(false));
   const [results, setResults] = useState<(boolean | null)[]>(new Array(questions.length).fill(null));
+  const [isReviewing, setIsReviewing] = useState(false);
 
   const totalAnswered = answered.filter(Boolean).length;
   const allDone = totalAnswered === questions.length;
 
-  const handleAnswer = (isCorrect: boolean) => {
+  const handleAnswer = async (isCorrect: boolean) => {
     if (answered[currentIndex]) return;
+    
+    // Optimistic UI updates
     const newAnswered = [...answered];
     newAnswered[currentIndex] = true;
     setAnswered(newAnswered);
@@ -29,18 +35,36 @@ export function MCQSession({ questions, onReset }: MCQSessionProps) {
     newResults[currentIndex] = isCorrect;
     setResults(newResults);
 
-    if (isCorrect) setScore(s => s + 1);
+    if (isCorrect) setScore((s: number) => s + 1);
+
+    // Persist to DB if we have a courseId
+    if (courseId) {
+      try {
+        const question = questions[currentIndex];
+        const res = await saveMCQAttempt(courseId, question.question, isCorrect);
+        if (res?.error) {
+          toast.error("Sync failed: " + res.error);
+        } else {
+          // Optional: toast.success("Progress synced"); 
+          // We'll keep it silent for success to avoid cluttering, 
+          // or just show it briefly.
+        }
+      } catch (err) {
+        console.error("Failed to save MCQ result:", err);
+        toast.error("Failed to sync progress. Is the database table created?");
+      }
+    }
   };
 
   const goTo = (index: number) => {
     if (index >= 0 && index < questions.length) setCurrentIndex(index);
   };
 
-  if (allDone) {
+  if (allDone && !isReviewing) {
     const percentage = Math.round((score / questions.length) * 100);
     return (
-      <div className="h-full flex items-center justify-center p-6">
-        <div className="text-center space-y-5 max-w-sm">
+      <div className="h-full flex items-center justify-center p-6 bg-background">
+        <div className="text-center space-y-5 max-w-sm animate-in fade-in zoom-in duration-500">
           <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center mx-auto">
             <Trophy className="w-8 h-8 text-indigo-400" />
           </div>
@@ -67,11 +91,11 @@ export function MCQSession({ questions, onReset }: MCQSessionProps) {
 
           {/* Results grid */}
           <div className="flex flex-wrap gap-1.5 justify-center pt-2">
-            {results.map((r, i) => (
+            {results.map((r: boolean | null, i: number) => (
               <button
                 key={i}
-                onClick={() => { setCurrentIndex(i); /* allow review */ }}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold cursor-pointer transition-all ${
+                onClick={() => { setCurrentIndex(i); setIsReviewing(true); }}
+                className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold cursor-pointer transition-all hover:scale-110 active:scale-95 ${
                   r ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/15 text-rose-400 border border-rose-500/20'
                 }`}
               >
@@ -80,35 +104,62 @@ export function MCQSession({ questions, onReset }: MCQSessionProps) {
             ))}
           </div>
 
-          <Button onClick={onReset} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 px-5 mt-3">
-            <RotateCcw className="w-4 h-4" />
-            Generate New Set
-          </Button>
+          <div className="flex flex-col gap-2 pt-3">
+            <Button onClick={() => setIsReviewing(true)} variant="outline" className="border-white/5 bg-white/5 hover:bg-white/10 text-foreground rounded-xl gap-2 h-11">
+              <BookOpen className="w-4 h-4" />
+              Review Answers
+            </Button>
+            <Button onClick={onReset} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 h-11 shadow-[0_0_20px_rgba(79,70,229,0.2)]">
+              <RotateCcw className="w-4 h-4" />
+              Generate New Set
+            </Button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Progress bar */}
-      <div className="shrink-0 px-5 pt-4 pb-2">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-semibold text-muted-foreground/50">
-            {totalAnswered} of {questions.length} answered
-          </span>
-          <span className="text-[11px] font-bold text-indigo-400">
-            Score: {score}/{totalAnswered}
-          </span>
-        </div>
-        <div className="w-full bg-white/[0.04] rounded-full h-1.5 overflow-hidden">
-          <div
-            className="h-full bg-indigo-500 rounded-full transition-all duration-300"
-            style={{ width: `${(totalAnswered / questions.length) * 100}%` }}
-          />
-        </div>
+    <div className="h-full flex flex-col bg-background">
+      {/* Progress bar / Review header */}
+      <div className="shrink-0 px-5 pt-4 pb-2 border-b border-white/[0.04]">
+        {isReviewing ? (
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col">
+              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Review Mode</span>
+              <span className="text-[13px] font-semibold text-foreground">Question {currentIndex + 1} of {questions.length}</span>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setIsReviewing(false)}
+              className="text-[11px] font-bold text-muted-foreground hover:text-foreground bg-white/5 rounded-lg h-8 px-3"
+            >
+              Back to Results
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[11px] font-semibold text-muted-foreground/50">
+              {totalAnswered} of {questions.length} answered
+            </span>
+            <span className="text-[11px] font-bold text-indigo-400">
+              Score: {score}/{totalAnswered}
+            </span>
+          </div>
+        )}
+        
+        {!isReviewing && (
+          <div className="w-full bg-white/[0.04] rounded-full h-1.5 overflow-hidden">
+            <div
+              className="h-full bg-indigo-500 rounded-full transition-all duration-300"
+              style={{ width: `${(totalAnswered / questions.length) * 100}%` }}
+            />
+          </div>
+        )}
+
         {/* Question dots */}
-        <div className="flex gap-1 mt-2 justify-center">
+        <div className="flex gap-1 mt-2 justify-center pb-2">
           {questions.map((_, i) => (
             <button
               key={i}

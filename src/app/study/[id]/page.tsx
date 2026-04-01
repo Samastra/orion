@@ -14,11 +14,14 @@ import {
   Loader2,
   BookOpen,
   GraduationCap,
-  Pencil
+  Pencil,
+  Sparkles,
+  Check
 } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { parseDocument } from "@/lib/document-parser";
+import { updateNote } from "@/lib/supabase/actions";
 import { UserAvatar } from "@/components/auth/UserAvatar";
 import { StudySelectorModal } from "@/components/study/StudySelectorModal";
 import { toast } from "sonner";
@@ -33,6 +36,8 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
   const [isSelectorOpen, setIsSelectorOpen] = useState(true);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [selectedNote, setSelectedNote] = useState<any>(null);
+  const [isAiModified, setIsAiModified] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatRef = useRef<{ clearChat: () => void }>(null);
 
@@ -46,7 +51,7 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
         setExtractedText(content);
       } catch (error) {
         console.error("Failed to parse document:", error);
-        toast.error("Failed to extract text from PDF");
+        toast.error("Failed to extract text from document");
       } finally {
         setIsParsing(false);
       }
@@ -76,6 +81,7 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
           setExtractedText(data.transformed);
           // Set a fake "AI File" for the header
           setFile({ name: `${note.title} (AI Refined)`, type: 'text/markdown' } as any);
+          setIsAiModified(true);
           toast.success("AI Notes Generated!");
         } else {
           throw new Error(data.error || "Transformation failed");
@@ -90,6 +96,39 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
     } else if (note) {
       setExtractedText(note.content);
       setFile({ name: note.title, type: 'text/plain' } as any);
+      setIsAiModified(false);
+    }
+  };
+
+  const handleSaveToCourse = async () => {
+    if (!selectedNote || !extractedText || !isAiModified) return;
+    
+    setIsSaving(true);
+    try {
+      const textToSave = Array.isArray(extractedText) ? extractedText.join('\n\n') : extractedText;
+      
+      // Extract the title from the first line if it's a markdown header
+      const firstLine = textToSave.split('\n')[0];
+      const newTitle = firstLine.startsWith('# ') 
+        ? firstLine.replace('# ', '').trim() 
+        : selectedNote.title;
+
+      const result = await updateNote(selectedNote.id, newTitle, textToSave, selectedCourse.id);
+      
+      if (result.error) throw new Error(result.error);
+      
+      toast.success("Study guide saved to your course!");
+      setIsAiModified(false); // Mark as no longer "modified" relative to DB
+      
+      // Update local state for UI
+      if (result.data) {
+        setSelectedNote(result.data);
+        setFile((prev: any) => prev ? { ...prev, name: result.data.title } : null);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to save notes");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -115,21 +154,21 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
 
           {selectedCourse && (
             <>
-               <div className="flex items-center gap-2 px-2 py-0.5 rounded-lg bg-white/5 border border-white/5">
+               <div className="flex items-center gap-2 px-2 py-0.5 rounded-lg bg-white/5 border border-white/5 shrink-0">
                  <BookOpen className="w-3 h-3 text-indigo-400" />
-                 <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-tight">{selectedCourse.name}</span>
+                 <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-tight truncate max-w-[80px]">{selectedCourse.name}</span>
                </div>
-               <div className="w-px h-3 bg-white/[0.06]" />
+               <div className="w-px h-3 bg-white/[0.06] shrink-0" />
             </>
           )}
 
           {file ? (
-            <div className="flex items-center gap-2">
-              <span className="text-[13px] font-medium text-foreground/90 truncate max-w-[200px]">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[13px] font-medium text-foreground/90 truncate max-w-[180px] inline-block">
                 {file.name}
               </span>
-              <span className="text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded font-mono uppercase">
-                {file.name.includes('(AI Refined)') ? 'ai' : file.name.split('.').pop()}
+              <span className="text-[10px] font-semibold bg-indigo-500/10 text-indigo-400 px-1.5 py-0.5 rounded font-mono uppercase shrink-0">
+                {file.name.includes('(AI Refined)') ? 'ai' : (file.name.includes('.') ? file.name.split('.').pop() : 'doc')}
               </span>
             </div>
           ) : (
@@ -158,6 +197,24 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
             {isParsing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
             {file ? "Change" : "Upload"}
           </Button>
+
+          {selectedNote && isAiModified && (
+            <Button 
+              onClick={handleSaveToCourse}
+              disabled={isSaving}
+              className="h-8 rounded-xl gap-1.5 text-[12px] font-bold px-3 bg-indigo-600 hover:bg-indigo-500 text-white"
+            >
+              {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+              Save AI Notes
+            </Button>
+          )}
+
+          {!isAiModified && selectedNote && extractedText && (
+            <div className="flex items-center gap-1.5 px-3 h-8 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-bold uppercase tracking-wider">
+              <Check className="w-3.5 h-3.5" />
+              Synced
+            </div>
+          )}
 
           <div className="w-px h-4 bg-white/[0.06]" />
 
