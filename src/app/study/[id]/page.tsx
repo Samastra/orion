@@ -21,7 +21,8 @@ import {
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { parseDocument } from "@/lib/document-parser";
-import { updateNote } from "@/lib/supabase/actions";
+import { updateNote, saveAnnotation, getAnnotations, deleteAnnotation } from "@/lib/supabase/actions";
+import { AnnotationOverlay } from "@/components/study/AnnotationOverlay";
 import { UserAvatar } from "@/components/auth/UserAvatar";
 import { StudySelectorModal } from "@/components/study/StudySelectorModal";
 import { toast } from "sonner";
@@ -32,12 +33,16 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
   const [file, setFile] = useState<File | null>(null);
   const [extractedText, setExtractedText] = useState<string | string[] | null>(null);
   const [isParsing, setIsParsing] = useState(false);
-  const [selectionAction, setSelectionAction] = useState<{ action: string; text: string } | null>(null);
+  const [annotations, setAnnotations] = useState<any[]>([]);
+  const [isOverlayOpen, setIsOverlayOpen] = useState(false);
+  const [overlayAction, setOverlayAction] = useState<string>('');
+  const [overlaySelection, setOverlaySelection] = useState<{ x: number; y: number; text: string } | null>(null);
   const [isSelectorOpen, setIsSelectorOpen] = useState(true);
   const [selectedCourse, setSelectedCourse] = useState<any>(null);
   const [selectedNote, setSelectedNote] = useState<any>(null);
   const [isAiModified, setIsAiModified] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatRef = useRef<{ clearChat: () => void }>(null);
 
@@ -97,6 +102,10 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
       setExtractedText(note.content);
       setFile({ name: note.title, type: 'text/plain' } as any);
       setIsAiModified(false);
+      
+      // Load annotations for this note
+      const { data } = await getAnnotations(note.id);
+      if (data) setAnnotations(data);
     }
   };
 
@@ -133,8 +142,40 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
   };
 
   const handleSelectionAction = useCallback((action: string, text: string) => {
-    setSelectionAction({ action, text });
+    // Get mouse position for the overlay
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const rect = selection.getRangeAt(0).getBoundingClientRect();
+      setOverlaySelection({
+        x: rect.left + rect.width / 2,
+        y: rect.bottom,
+        text: text
+      });
+      setOverlayAction(action);
+      setIsOverlayOpen(true);
+    }
   }, []);
+
+  const handleSaveAnnotation = async (highlightedText: string, content: string, type: 'ai' | 'manual') => {
+    if (!selectedNote) return;
+    const trimmedText = highlightedText.trim();
+    const { data, error } = await saveAnnotation(selectedNote.id, trimmedText, content, type);
+    if (data) {
+      setAnnotations(prev => [...prev, data]);
+    } else if (error) {
+      toast.error("Failed to save annotation");
+    }
+  };
+
+  const handleDeleteAnnotation = async (id: string) => {
+    const { success, error } = await deleteAnnotation(id);
+    if (success) {
+      setAnnotations(prev => prev.filter(a => a.id !== id));
+      toast.success("Annotation deleted");
+    } else if (error) {
+      toast.error("Failed to delete annotation");
+    }
+  };
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden text-foreground">
@@ -232,6 +273,8 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
               isLoading={isParsing}
               onUpload={() => fileInputRef.current?.click()}
               onSelectionAction={handleSelectionAction}
+              annotations={annotations}
+              onDeleteAnnotation={handleDeleteAnnotation}
             />
           </ResizablePanel>
           
@@ -243,12 +286,21 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
               sessionId={id} 
               context={extractedText} 
               fileName={file?.name}
-              selectionAction={selectionAction}
               courseId={selectedCourse?.id}
+              selectionAction={overlaySelection ? { action: overlayAction, text: overlaySelection.text } : null}
             />
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>
+
+      <AnnotationOverlay 
+        isOpen={isOverlayOpen}
+        onClose={() => setIsOverlayOpen(false)}
+        selection={overlaySelection}
+        action={overlayAction}
+        onSave={handleSaveAnnotation}
+        context={extractedText}
+      />
 
       <StudySelectorModal 
         open={isSelectorOpen} 

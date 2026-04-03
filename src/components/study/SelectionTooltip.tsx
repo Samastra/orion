@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Sparkles, BookOpen, HelpCircle, Lightbulb, X } from 'lucide-react';
+import { Sparkles, BookOpen, HelpCircle, Lightbulb, X, Pencil } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 
 interface SelectionTooltipProps {
@@ -70,12 +70,12 @@ export function SelectionTooltip({ onAction }: SelectionTooltipProps) {
         transform: 'translate(-50%, -100%)',
       }}
     >
-      <div className="bg-neutral-900 border border-white/10 rounded-2xl shadow-2xl shadow-black/50 p-1.5 flex items-center gap-1">
+      <div className="bg-neutral-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/80 p-1.5 flex items-center gap-1 ring-1 ring-white/5">
         <Button
           onClick={() => handleAction('explain')}
           variant="ghost"
           size="sm"
-          className="h-8 rounded-xl gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 px-3"
+          className="h-8 rounded-xl gap-1.5 text-[11px] font-bold uppercase tracking-wider text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300 px-3 transition-all"
         >
           <Sparkles className="w-3.5 h-3.5" />
           Explain
@@ -85,30 +85,31 @@ export function SelectionTooltip({ onAction }: SelectionTooltipProps) {
           onClick={() => handleAction('summarize')}
           variant="ghost"
           size="sm"
-          className="h-8 rounded-xl gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 px-3"
+          className="h-8 rounded-xl gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 px-3 transition-all"
         >
           <BookOpen className="w-3.5 h-3.5" />
           Summarize
         </Button>
         <div className="w-px h-5 bg-white/10" />
         <Button
-          onClick={() => handleAction('quiz')}
-          variant="ghost"
-          size="sm"
-          className="h-8 rounded-xl gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 px-3"
-        >
-          <HelpCircle className="w-3.5 h-3.5" />
-          Quiz Me
-        </Button>
-        <div className="w-px h-5 bg-white/10" />
-        <Button
           onClick={() => handleAction('key_concepts')}
           variant="ghost"
           size="sm"
-          className="h-8 rounded-xl gap-1.5 text-[11px] font-bold uppercase tracking-wider text-purple-400 hover:bg-purple-500/10 hover:text-purple-300 px-3"
+          className="h-8 rounded-xl gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 px-3 transition-all"
         >
           <Lightbulb className="w-3.5 h-3.5" />
           Key Ideas
+        </Button>
+        
+        <div className="w-px h-5 bg-white/10" />
+        <Button
+          onClick={() => handleAction('manual')}
+          variant="ghost"
+          size="sm"
+          className="h-8 rounded-xl gap-1.5 text-[11px] font-bold uppercase tracking-wider text-violet-400 hover:bg-violet-500/10 hover:text-violet-300 px-3 transition-all"
+        >
+          <Pencil className="w-3.5 h-3.5" />
+          Annotate
         </Button>
       </div>
       {/* Arrow */}

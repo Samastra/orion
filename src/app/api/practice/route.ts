@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
   try {
     const { context, type = 'mcq', topicFocus, count = 10, difficulty = 'Medium' } = await req.json();
 
-    const apiKey = process.env['DEEPSEEK_API-KEY'];
+    const apiKey = process.env['DEEPSEEK_API_KEY'];
     if (!apiKey) {
       return NextResponse.json({ error: 'API key not configured' }, { status: 500 });
     }

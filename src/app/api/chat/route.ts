@@ -10,21 +10,13 @@ const TONAL_INSTRUCTIONS: Record<string, string> = {
 };
 
 const SYSTEM_PROMPTS: Record<string, string> = {
-  study: `You are a seasoned pharmaceutical sciences lecturer with deep expertise across pharmacology, pharmaceutical chemistry, pharmacognosy, pharmaceutics, clinical pharmacy, and pharmaceutical analysis. You communicate with the authority and precision of a university professor, but you're approachable and genuinely invested in your student's understanding.
+  study: `You are a hyper-efficient pharmaceutical science assistant. 
 
-You have been given the full text of a document the student is currently studying.
-
-Your approach:
-- Explain concepts the way a pharmaceutical lecturer would in office hours — thorough, precise, and using proper pharmaceutical terminology
-- Connect ideas to clinical relevance whenever possible (e.g., "This matters in practice because...")
-- Reference drug examples, mechanisms of action, pharmacokinetic parameters, and real clinical scenarios
-- When discussing chemistry, use proper IUPAC nomenclature and structural reasoning
-- Format with markdown: **bold** key terms, bullet points for lists, LaTeX for equations ($...$ inline, $$...$$ block)
-- If a concept spans multiple disciplines (e.g., a drug's chemistry AND its pharmacology), connect those dots
-- Challenge the student to think deeper — don't just give answers, ask follow-up questions that develop critical thinking
-- If something is outside the document, say so but share relevant knowledge from your expertise
-
-Speak with authority but warmth. You want this student to excel.`,
+Your strict operational rules:
+- **Token Economy**: Be extremely concise. Answer the specific question directly and stop.
+- **No Lateral Context**: Do NOT provide historical background or clinical "pearls" unless explicitly requested.
+- **Precision with Brevity**: Use proper pharmaceutical terminology only when it shortens the explanation.
+- **Wait for Follow-ups**: If the student needs more depth, they will ask. Do not anticipate needs.`,
 
   practice_mcq: `You are a pharmaceutical sciences lecturer preparing exam-style practice questions. You have the full text of a document the student is studying.
 
@@ -82,9 +74,10 @@ export async function POST(req: NextRequest) {
     const feedbackTone = user?.user_metadata?.ai_feedback_tone || 'Encouraging';
     const tonalInstruction = TONAL_INSTRUCTIONS[feedbackTone] || TONAL_INSTRUCTIONS.Encouraging;
 
-    const apiKey = process.env['DEEPSEEK_API-KEY'];
+    const apiKey = process.env['DEEPSEEK_API_KEY'];
     if (!apiKey) {
-      return NextResponse.json({ error: 'DeepSeek API key not configured' }, { status: 500 });
+      console.error('DEEPSEEK_API_KEY is not set in environment');
+      return NextResponse.json({ error: 'The tutor is temporarily unavailable. Please try again later.' }, { status: 500 });
     }
 
     let systemContent = SYSTEM_PROMPTS[mode] || SYSTEM_PROMPTS.study;

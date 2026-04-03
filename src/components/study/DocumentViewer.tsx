@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Upload, FileText, FileWarning, Loader2, Sparkles, Wand2 } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Upload, FileText, FileWarning, Loader2, Sparkles, Wand2, Pencil, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { PDFRenderer } from './PDFRenderer';
 import { SelectionTooltip } from './SelectionTooltip';
@@ -7,6 +7,12 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
+import rehypeRaw from 'rehype-raw';
+import { 
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import 'katex/dist/katex.min.css';
 
 interface DocumentViewerProps {
@@ -15,9 +21,19 @@ interface DocumentViewerProps {
   isLoading?: boolean;
   onUpload?: () => void;
   onSelectionAction?: (action: string, text: string) => void;
+  annotations?: any[];
+  onDeleteAnnotation?: (id: string) => void;
 }
 
-export function DocumentViewer({ file, content, isLoading, onUpload, onSelectionAction }: DocumentViewerProps) {
+export function DocumentViewer({ 
+  file, 
+  content, 
+  isLoading, 
+  onUpload, 
+  onSelectionAction, 
+  annotations = [], 
+  onDeleteAnnotation 
+}: DocumentViewerProps) {
   const [docHtml, setDocHtml] = useState<string | null>(null);
   const [internalLoading, setInternalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +42,95 @@ export function DocumentViewer({ file, content, isLoading, onUpload, onSelection
     if (!file || !file.name) return null;
     return file.name.split('.').pop()?.toLowerCase() || null;
   }, [file]);
+
+  // HELPER: Recursively renders children, swapping ghost tokens for HoverCards
+  const renderWithHighlights = useCallback((children: React.ReactNode): React.ReactNode => {
+    return React.Children.map(children, (child) => {
+      if (typeof child === 'string') {
+        const parts = child.split(/(:::ghost:[^:]*:::|:::endghost:::)/g);
+        const result: React.ReactNode[] = [];
+        let currentAnnoId: string | null = null;
+        let currentText: string[] = [];
+
+        for (let i = 0; i < parts.length; i++) {
+          const part = parts[i];
+          if (!part) continue;
+
+          if (part.startsWith(':::ghost:')) {
+            currentAnnoId = part.replace(':::ghost:', '').replace(':::', '');
+          } else if (part === ':::endghost:::') {
+            if (currentAnnoId) {
+              const anno = annotations.find(a => a.id === currentAnnoId);
+              const textContent = currentText.join('');
+              if (anno) {
+                result.push(
+                  <HoverCard key={`anno-${anno.id}-${i}`} openDelay={100} closeDelay={200}>
+                    <HoverCardTrigger asChild>
+                      <span className="ghost-highlight">{textContent}</span>
+                    </HoverCardTrigger>
+                    <HoverCardContent 
+                      side="top" 
+                      align="center"
+                      className="w-80 bg-neutral-900/90 backdrop-blur-2xl border-white/10 p-0 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/5 animate-in fade-in zoom-in-95 duration-200"
+                    >
+                      <div className="flex flex-col">
+                         <div className="px-4 py-2 bg-white/[0.03] border-b border-white/5 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {anno.type === 'ai' ? <Sparkles className="w-3 h-3 text-indigo-400" /> : <Pencil className="w-3 h-3 text-indigo-400" />}
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{anno.type === 'ai' ? 'AI Insight' : 'Your Note'}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-[9px] text-muted-foreground/30 font-medium text-white/40">{new Date(anno.created_at).toLocaleDateString()}</span>
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteAnnotation?.(anno.id);
+                                }}
+                                className="p-1 rounded-md hover:bg-rose-500/10 text-white/30 hover:text-rose-400 transition-colors"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                         </div>
+                         <div className="p-4 overflow-y-auto max-h-[250px] modern-scrollbar custom-scrollbar">
+                            <div className="prose prose-invert prose-sm max-w-none 
+                              [&_p]:text-[12.5px] [&_p]:leading-relaxed [&_p]:text-foreground/80 
+                              [&_ul]:my-2 [&_li]:text-[12.5px] [&_li]:text-foreground/70"
+                            >
+                              <ReactMarkdown remarkPlugins={[remarkGfm]}>{anno.content ?? ""}</ReactMarkdown>
+                            </div>
+                         </div>
+                      </div>
+                    </HoverCardContent>
+                  </HoverCard>
+                );
+              } else {
+                result.push(textContent);
+              }
+              currentAnnoId = null;
+              currentText = [];
+            }
+          } else {
+            if (currentAnnoId) {
+              currentText.push(part);
+            } else {
+              result.push(part);
+            }
+          }
+        }
+        return result;
+      }
+      
+      if (React.isValidElement(child) && (child.props as any).children) {
+        return React.cloneElement(child, {
+          ...(child.props as any),
+          children: renderWithHighlights((child.props as any).children)
+        } as any);
+      }
+      
+      return child;
+    });
+  }, [annotations, onDeleteAnnotation]);
 
   // Process DOCX/PPTX files into HTML
   useEffect(() => {
@@ -98,10 +203,38 @@ export function DocumentViewer({ file, content, isLoading, onUpload, onSelection
     if (onSelectionAction) onSelectionAction(action, text);
   };
 
-  // If we have AI/Manual content but no real File object representing an original PDF/Doc
-  const isDirectContent = typeof content === 'string' && (!file || !file.arrayBuffer);
+  const docContent = useMemo(() => {
+    if (!content) return "";
+    return Array.isArray(content) ? content.join('\n\n') : content;
+  }, [content]);
 
-  // Empty state
+  const isDirectContent = typeof docContent === 'string' && docContent.length > 0 && (!file || !file.arrayBuffer);
+
+  const processedContent = useMemo(() => {
+    if (annotations.length === 0) return docContent;
+    let text = docContent;
+    
+    const sortedAnnotations = [...annotations].sort((a, b) => b.highlighted_text.length - a.highlighted_text.length);
+    
+    sortedAnnotations.forEach((anno) => {
+      const textToMatch = anno.highlighted_text.trim();
+      if (!textToMatch) return;
+      
+      const escaped = textToMatch.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+      const flexiblePattern = escaped
+        .split(/\s+/)
+        .map((word: string) => {
+          return word.split('').map(c => '[\\*\\_\\~\\`]*' + c).join('') + '[\\*\\_\\~\\`]*';
+        })
+        .join('[\\s\\*\\_\\~\\`\\n]+');
+      
+      const regex = new RegExp(`(?<!:::ghost:[^:]*:::)${flexiblePattern}`, 'gi');
+      text = text.replace(regex, (match) => `:::ghost:${anno.id}:::${match}:::endghost:::`);
+    });
+    
+    return text;
+  }, [docContent, annotations]);
+
   if (!file && !isDirectContent && !isLoading) {
     return (
       <div className="h-full flex items-center justify-center bg-neutral-950/30">
@@ -137,7 +270,6 @@ export function DocumentViewer({ file, content, isLoading, onUpload, onSelection
     <div className="h-full flex flex-col bg-background relative">
       <SelectionTooltip onAction={handleSelectionAction} />
 
-      {/* Global Loading States */}
       {(isLoading || internalLoading) && (
         <div className="absolute inset-0 flex items-center justify-center z-20 bg-background/80 backdrop-blur-2xl">
           <div className="flex flex-col items-center gap-6 max-w-xs text-center">
@@ -185,145 +317,77 @@ export function DocumentViewer({ file, content, isLoading, onUpload, onSelection
             </div>
             
             <style>{`
-              .study-guide-article h1 {
-                font-size: 28px !important;
-                font-weight: 900 !important;
-                letter-spacing: -0.02em !important;
-                color: rgba(255,255,255,0.95) !important;
-                margin-top: 8px !important;
-                margin-bottom: 16px !important;
-                line-height: 1.25 !important;
+              .study-guide-article h1 { font-size: 28px !important; font-weight: 900 !important; color: rgba(255,255,255,0.95) !important; margin-bottom: 16px !important; line-height: 1.25 !important; }
+              .study-guide-article h2 { font-size: 22px !important; font-weight: 700 !important; color: rgba(129,140,248,0.9) !important; margin-top: 48px !important; margin-bottom: 20px !important; padding-bottom: 12px !important; border-bottom: 1px solid rgba(255,255,255,0.06) !important; }
+              .study-guide-article h3 { font-size: 18px !important; font-weight: 700 !important; color: rgba(255,255,255,0.88) !important; margin-top: 36px !important; line-height: 1.35 !important; }
+              .study-guide-article p { font-size: 15px !important; line-height: 1.9 !important; color: rgba(255,255,255,0.72) !important; margin-bottom: 24px !important; }
+              .study-guide-article li { font-size: 15px !important; line-height: 1.8 !important; color: rgba(255,255,255,0.72) !important; }
+              .study-guide-article blockquote { border-left: 4px solid rgba(99, 102, 241, 0.5); background: rgba(99, 102, 241, 0.06); padding: 20px 24px; border-radius: 0 12px 12px 0; font-style: italic; margin: 32px 0; }
+              .ghost-highlight {
+                display: inline !important;
+                background-color: rgba(99, 102, 241, 0.12) !important;
+                border: 1px solid rgba(99, 102, 241, 0.25) !important;
+                color: #a5b4fc !important;
+                padding: 1px 6px !important;
+                margin: 0 1px !important;
+                border-radius: 6px !important;
+                cursor: help !important;
+                transition: all 0.2s ease;
+                font-weight: 500 !important;
               }
-              .study-guide-article h2 {
-                font-size: 22px !important;
-                font-weight: 700 !important;
-                letter-spacing: -0.01em !important;
-                color: rgba(129,140,248,0.9) !important;
-                margin-top: 48px !important;
-                margin-bottom: 20px !important;
-                padding-bottom: 12px !important;
-                border-bottom: 1px solid rgba(255,255,255,0.06) !important;
-                line-height: 1.3 !important;
-              }
-              .study-guide-article h3 {
-                font-size: 18px !important;
-                font-weight: 700 !important;
-                color: rgba(255,255,255,0.88) !important;
-                margin-top: 36px !important;
-                margin-bottom: 14px !important;
-                line-height: 1.35 !important;
-              }
-              .study-guide-article h4 {
-                font-size: 15px !important;
-                font-weight: 600 !important;
-                color: rgba(255,255,255,0.75) !important;
-                margin-top: 28px !important;
-                margin-bottom: 10px !important;
-                line-height: 1.4 !important;
-              }
-              .study-guide-article p {
-                font-size: 15px !important;
-                line-height: 1.9 !important;
-                color: rgba(255,255,255,0.72) !important;
-                margin-bottom: 24px !important;
-              }
-              .study-guide-article ul,
-              .study-guide-article ol {
-                margin-top: 16px !important;
-                margin-bottom: 24px !important;
-                padding-left: 24px !important;
-              }
-              .study-guide-article li {
-                font-size: 15px !important;
-                line-height: 1.8 !important;
-                color: rgba(255,255,255,0.72) !important;
-                margin-top: 6px !important;
-                margin-bottom: 6px !important;
-              }
-              .study-guide-article strong {
-                color: rgba(255,255,255,0.95) !important;
-                font-weight: 700 !important;
-              }
-              .study-guide-article code {
-                background: rgba(255,255,255,0.06);
-                padding: 2px 6px;
-                border-radius: 4px;
-                font-size: 13px;
-                color: rgba(129,140,248,0.85);
-              }
-              .study-guide-article a {
-                color: rgba(129,140,248,0.9) !important;
-                text-decoration: none !important;
-              }
-              .study-guide-article a:hover {
-                text-decoration: underline !important;
-              }
-              .study-guide-article .katex-display {
-                margin: 32px 0 !important;
-                padding: 16px 24px !important;
-                background: rgba(255,255,255,0.02) !important;
-                border: 1px solid rgba(255,255,255,0.06) !important;
-                border-radius: 12px !important;
-              }
-              .study-guide-article .katex {
-                font-size: 1.05em !important;
-              }
-              .study-guide-article hr {
-                border: none !important;
-                height: 1px !important;
-                background: linear-gradient(to right, transparent, rgba(255,255,255,0.08), transparent) !important;
-                margin: 48px 0 !important;
+              .ghost-highlight:hover {
+                background-color: rgba(99, 102, 241, 0.25) !important;
+                border-color: rgba(99, 102, 241, 0.6) !important;
+                box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
               }
             `}</style>
-
+            
             <article className="study-guide-article prose prose-invert max-w-none">
               <ReactMarkdown
                 remarkPlugins={[remarkMath, remarkGfm]}
-                rehypePlugins={[rehypeKatex]}
+                rehypePlugins={[rehypeKatex, rehypeRaw]}
                 components={{
-                  // Blockquote — clinical pearls / key takeaways
-                  blockquote: ({node, ...props}) => (
-                    <blockquote className="border-l-4 border-indigo-500/50 bg-indigo-500/[0.06] px-6 py-5 rounded-r-xl italic my-8 [&_p]:text-indigo-200/80 [&_p]:mb-0 [&_strong]:text-indigo-300 [&_strong]:not-italic" {...props} />
-                  ),
+                  p: ({children, ...props}) => <p {...props}>{renderWithHighlights(children)}</p>,
+                  li: ({children, ...props}) => <li {...props}>{renderWithHighlights(children)}</li>,
+                  h1: ({children, ...props}) => <h1 {...props}>{renderWithHighlights(children)}</h1>,
+                  h2: ({children, ...props}) => <h2 {...props}>{renderWithHighlights(children)}</h2>,
+                  h3: ({children, ...props}) => <h3 {...props}>{renderWithHighlights(children)}</h3>,
+                  h4: ({children, ...props}) => <h4 {...props}>{renderWithHighlights(children)}</h4>,
                   // Table wrapper — rounded card with border
-                  table: ({node, ...props}) => (
+                  table: ({children}) => (
                     <div className="my-8 rounded-xl border border-white/[0.08] overflow-hidden bg-white/[0.015]">
-                      <table className="w-full border-collapse m-0" {...props} />
+                      <table className="w-full border-collapse m-0">{children}</table>
                     </div>
                   ),
-                  thead: ({node, ...props}) => (
-                    <thead className="bg-white/[0.06]" {...props} />
+                  thead: ({children}) => (
+                    <thead className="bg-white/[0.06]">{children}</thead>
                   ),
-                  th: ({node, ...props}) => (
-                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-indigo-400 uppercase tracking-widest border-b border-white/[0.08]" {...props} />
+                  th: ({children}) => (
+                    <th className="px-5 py-3.5 text-left text-[11px] font-bold text-indigo-400 uppercase tracking-widest border-b border-white/[0.08]">
+                      {children}
+                    </th>
                   ),
-                  td: ({node, ...props}) => (
-                    <td className="px-5 py-3.5 text-[14px] text-foreground/75 border-b border-white/[0.04] leading-relaxed" {...props} />
+                  td: ({children}) => (
+                    <td className="px-5 py-3.5 text-[14px] text-foreground/75 border-b border-white/[0.04] leading-relaxed">
+                      {renderWithHighlights(children)}
+                    </td>
                   ),
-                  tr: ({node, ...props}) => {
-                    // Cast children to array and check if first child is a th to detect header rows
-                    const children = React.Children.toArray((props as any).children);
-                    const isHeader = children.length > 0 && typeof children[0] === 'object' && (children[0] as any)?.type === 'th';
+                  tr: ({children}) => {
+                    const childrenArray = React.Children.toArray(children);
+                    const isHeader = childrenArray.length > 0 && typeof childrenArray[0] === 'object' && (childrenArray[0] as any)?.type === 'th';
                     return (
-                      <tr className={isHeader ? '' : 'even:bg-white/[0.02] hover:bg-white/[0.04] transition-colors'} {...props} />
+                      <tr className={isHeader ? '' : 'even:bg-white/[0.02] hover:bg-white/[0.04] transition-colors'}>
+                        {children}
+                      </tr>
                     );
                   },
-                  // Horizontal rule — subtle section divider
-                  hr: ({node, ...props}) => (
-                    <hr className="my-12 border-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" {...props} />
-                  ),
+                  blockquote: ({children}) => <blockquote>{renderWithHighlights(children)}</blockquote>,
+                  hr: () => <hr className="my-12 border-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />,
                 }}
               >
-                {content as string}
+                {processedContent}
               </ReactMarkdown>
             </article>
-            
-            <div className="pt-12 border-t border-white/5 flex items-center justify-center opacity-20">
-              <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase">
-                <Sparkles className="w-3 h-3" />
-                <span>End of AI Guide</span>
-              </div>
-            </div>
           </div>
         </div>
       ) : fileType === 'pdf' ? (
@@ -331,50 +395,8 @@ export function DocumentViewer({ file, content, isLoading, onUpload, onSelection
       ) : docHtml ? (
         <div className="h-full flex flex-col">
           <div className="flex-1 overflow-auto px-10 py-8">
-            <style jsx>{`
-              .slide-card {
-                background: rgba(255, 255, 255, 0.02);
-                border: 1px solid rgba(255,255,255,0.06);
-                border-radius: 12px;
-                padding: 28px 32px;
-                margin-bottom: 16px;
-              }
-              .slide-header {
-                display: flex;
-                align-items: center;
-                gap: 10px;
-                margin-bottom: 16px;
-                padding-bottom: 12px;
-                border-bottom: 1px solid rgba(255,255,255,0.04);
-              }
-              .slide-num {
-                background: rgba(99,102,241,0.1);
-                color: #818cf8;
-                width: 24px;
-                height: 24px;
-                border-radius: 6px;
-                font-size: 11px;
-                font-weight: 600;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-family: var(--font-mono);
-              }
-              .slide-label {
-                color: rgba(255,255,255,0.4);
-                font-size: 12px;
-                font-weight: 500;
-                letter-spacing: 0.02em;
-              }
-              .slide-text {
-                color: rgba(226, 232, 240, 0.85);
-                font-size: 14px;
-                line-height: 1.8;
-                margin: 6px 0;
-              }
-            `}</style>
             <div 
-              className="prose prose-invert prose-sm max-w-none [&_p]:leading-[1.8] [&_p]:text-[14px] [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:text-base [&_h3]:font-medium"
+              className="prose prose-invert prose-sm max-w-none [&_p]:leading-[1.8] [&_p]:text-[14px]"
               dangerouslySetInnerHTML={{ __html: docHtml }} 
             />
           </div>

@@ -544,3 +544,49 @@ export async function deleteSavedQuestion(id: string, courseId: string) {
   return { success: true };
 }
 
+
+export async function saveAnnotation(noteId: string, highlightedText: string, content: string, type: 'ai' | 'manual') {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  const { data, error } = await supabase
+    .from('annotations')
+    .insert([
+      { 
+        note_id: noteId, 
+        user_id: user.id, 
+        highlighted_text: highlightedText, 
+        content, 
+        type 
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) return { error: error.message };
+  return { data };
+}
+
+export async function getAnnotations(noteId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('annotations')
+    .select('*')
+    .eq('note_id', noteId)
+    .order('created_at', { ascending: true });
+
+  if (error) return { error: error.message };
+  return { data };
+}
+
+export async function deleteAnnotation(id: string) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from('annotations')
+    .delete()
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+  return { success: true };
+}

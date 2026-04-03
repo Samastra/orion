@@ -103,6 +103,7 @@ export const ChatInterface = React.forwardRef<
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modeMenuRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const processedActionRef = useRef<string | null>(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
@@ -157,7 +158,7 @@ export const ChatInterface = React.forwardRef<
         return;
       }
       console.error('AI error:', error);
-      setMessages(prev => [...prev, { role: 'ai', content: '⚠️ Connection failed. Check your API key and try again.', timestamp: ts() }]);
+      setMessages(prev => [...prev, { role: 'ai', content: '⚠️ The tutor is currently disconnected. We are attempting to reconnect...', timestamp: ts() }]);
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;
@@ -172,7 +173,13 @@ export const ChatInterface = React.forwardRef<
 
   // Selection actions
   useEffect(() => {
-    if (!selectionAction) return;
+    if (!selectionAction || isLoading) return;
+    
+    // De-duplicate: Ensure we only process this specific action once
+    const actionKey = `${selectionAction.action}-${selectionAction.text}`;
+    if (processedActionRef.current === actionKey) return;
+    processedActionRef.current = actionKey;
+
     const labels: Record<string, string> = {
       explain: '🔍 Explain this', summarize: '📝 Summarize this',
       quiz: '❓ Quiz me on this', key_concepts: '💡 Key concepts',
@@ -180,8 +187,12 @@ export const ChatInterface = React.forwardRef<
     const label = labels[selectionAction.action] || 'Analyze this';
     const text = selectionAction.text.length > 300 ? selectionAction.text.slice(0, 300) + '...' : selectionAction.text;
     const userMsg: Message = { role: 'user', content: `${label}:\n\n> ${text}`, timestamp: ts() };
-    setMessages(prev => { const updated = [...prev, userMsg]; sendToAI(updated); return updated; });
-  }, [selectionAction]);
+    
+    // FIX: Separated state update and API call
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
+    sendToAI(updatedMessages);
+  }, [selectionAction, isLoading, messages, sendToAI]);
 
   // Document greeting
   useEffect(() => {
@@ -195,7 +206,9 @@ export const ChatInterface = React.forwardRef<
   const handleSend = () => {
     if (!input.trim() || isLoading) return;
     const userMsg: Message = { role: 'user', content: input, timestamp: ts() };
-    setMessages(prev => { const updated = [...prev, userMsg]; sendToAI(updated); return updated; });
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
+    sendToAI(updatedMessages);
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
