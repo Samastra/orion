@@ -41,7 +41,7 @@ export default function DashboardPage() {
   const stats = [
     { label: 'Courses Active', value: courseCount !== null ? courseCount.toString() : '...', icon: BookOpen, color: 'text-indigo-400' },
     { label: 'Study Hours', value: '48.5h', icon: Clock, color: 'text-violet-400' },
-    { label: 'Practice Score', value: '92%', icon: Trophy, color: 'text-emerald-400' },
+    { label: 'Practice Score', value: '92%', icon: Trophy, color: 'text-emerald-400' }, // 92% is >= 90, so Green is correct per user feedback
     { label: 'Daily Streak', value: '14 Days', icon: TrendingUp, color: 'text-rose-400' },
   ];
 
@@ -67,7 +67,7 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-          <p className="text-muted-foreground text-lg">You&apos;ve completed <span className="text-emerald-500 font-semibold">85%</span> of your weekly study goals. Keep it up!</p>
+          <p className="text-muted-foreground text-lg">You&apos;ve completed <span className="text-indigo-500 font-semibold">85%</span> of your weekly study goals. Keep it up!</p>
         </div>
         <div className="flex items-center gap-3">
           <Button variant="outline" size="icon" className="h-12 w-12 rounded-xl border-white/5 bg-white/5 hover:bg-white/10">

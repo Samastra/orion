@@ -151,7 +151,7 @@ export default function CoursesPage() {
                           <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold truncate">{course.type}</span>
                         </div>
                       </div>
-                      <div className={`w-10 h-10 shrink-0 rounded-xl flex items-center justify-center ${course.type === 'Pharmacy' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-indigo-500/10 text-indigo-400'}`}>
+                      <div className="w-10 h-10 shrink-0 rounded-xl flex items-center justify-center bg-indigo-500/10 text-indigo-400">
                         <BookOpen className="w-5 h-5" />
                       </div>
                     </div>

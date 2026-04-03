@@ -186,15 +186,15 @@ export function StudySelectorModal({ open, onSelect }: StudySelectorModalProps) 
                         className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-indigo-500/30 transition-all group"
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 text-emerald-400">
+                          <div className="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 text-indigo-400">
                             <FileText className="w-4 h-4" />
                           </div>
                           <div className="text-left">
-                            <p className="font-bold text-[14px] group-hover:text-emerald-400 transition-colors tracking-tight">{note.title}</p>
+                            <p className="font-bold text-[14px] group-hover:text-indigo-400 transition-colors tracking-tight">{note.title}</p>
                             <p className="text-[11px] text-muted-foreground/60">Updated {new Date(note.updated_at).toLocaleDateString()}</p>
                           </div>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-emerald-400 transition-all" />
+                        <ChevronRight className="w-4 h-4 text-muted-foreground/30 group-hover:text-indigo-400 transition-all" />
                       </button>
                     ))}
                   </>

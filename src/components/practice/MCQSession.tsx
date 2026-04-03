@@ -132,14 +132,14 @@ export function MCQSession({ questions, onReset, courseId, suggestedTitle }: MCQ
             <div className="w-full bg-white/[0.04] rounded-full h-2.5 overflow-hidden">
               <div
                 className={`h-full rounded-full transition-all duration-700 ${
-                  percentage >= 80 ? 'bg-emerald-500' : percentage >= 50 ? 'bg-indigo-500' : 'bg-rose-500'
+                  percentage >= 90 ? 'bg-emerald-500' : percentage >= 70 ? 'bg-indigo-500' : percentage >= 50 ? 'bg-amber-500' : 'bg-rose-500'
                 }`}
                 style={{ width: `${percentage}%` }}
               />
             </div>
 
             <p className="text-[13px] text-muted-foreground/40">
-              {percentage >= 80 ? 'Excellent work! 🎉' : percentage >= 50 ? 'Good effort! Keep reviewing.' : 'Keep studying — you\'ll get there! 💪'}
+              {percentage >= 90 ? 'Mastery achieved! 🎉' : percentage >= 70 ? 'Excellent work! Keep it up.' : percentage >= 50 ? 'Good effort! Review the tricky ones.' : 'Keep studying — you\'ll get there! 💪'}
             </p>
 
             {/* Results grid */}

@@ -142,7 +142,7 @@ export function PerformanceChart({ data, loading }: PerformanceChartProps) {
             {chartData.map((entry: any, index: number) => (
               <Cell 
                 key={`cell-${index}`} 
-                fill={isGhost ? 'rgba(255,255,255,0.05)' : entry.score >= 80 ? '#10b981' : entry.score >= 50 ? '#6366f1' : entry.score === 0 ? 'rgba(255,255,255,0.02)' : '#f43f5e'} 
+                fill={isGhost ? 'rgba(255,255,255,0.05)' : entry.score >= 90 ? '#10b981' : entry.score >= 70 ? '#6366f1' : entry.score >= 50 ? '#f59e0b' : entry.score === 0 ? 'rgba(255,255,255,0.02)' : '#ef4444'} 
                 fillOpacity={isGhost ? 0.2 : 0.8}
               />
             ))}

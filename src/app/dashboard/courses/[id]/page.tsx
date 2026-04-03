@@ -218,7 +218,7 @@ export default function CourseDetailPage() {
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
         <div className="flex items-start gap-4">
-          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 mt-1 ${course.type === 'Pharmacy' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-indigo-500/10 text-indigo-400'} border border-white/5`}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 mt-1 bg-indigo-500/10 text-indigo-400 border border-white/5">
             <BookOpen className="w-7 h-7" />
           </div>
           <div className="space-y-1">
@@ -503,7 +503,7 @@ export default function CourseDetailPage() {
                    <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500/40 opacity-0 group-hover:opacity-100 transition-opacity" />
                    <div className="flex flex-col gap-4">
                       <div className="flex items-center justify-between">
-                         <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${session.type === 'mcq' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'}`}>
+                         <div className="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                            {session.type === 'mcq' ? 'Multiple Choice' : 'Flashcard Set'}
                          </div>
                          <Calendar className="w-3.5 h-3.5 text-muted-foreground/30" />

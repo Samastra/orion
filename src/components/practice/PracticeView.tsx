@@ -311,7 +311,7 @@ function PracticeTabs({
           onClick={() => setType('saved')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
             type === 'saved'
-              ? 'bg-emerald-600 text-white border border-emerald-700/50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]'
+              ? 'bg-indigo-600 text-white border border-indigo-700/50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]'
               : 'text-muted-foreground/40 hover:text-muted-foreground/60 hover:bg-white/[0.03] border border-transparent'
           }`}
         >
@@ -489,7 +489,7 @@ function SavedSessionsBrowser({ courseId, onSelectSession }: { courseId?: string
             onClick={() => setFilter('flashcard')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
               filter === 'flashcard'
-                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                ? 'bg-violet-500/15 text-violet-400 border border-violet-500/20'
                 : 'text-muted-foreground/40 hover:text-muted-foreground/60 hover:bg-white/[0.03] border border-transparent'
             }`}
           >
@@ -512,8 +512,8 @@ function SavedSessionsBrowser({ courseId, onSelectSession }: { courseId?: string
               <div className={cn(
                 "w-9 h-9 rounded-lg flex items-center justify-center border text-[10px] font-bold",
                 session.type === 'mcq' 
-                  ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" 
-                  : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
+                   ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" 
+                   : "bg-violet-500/10 border-violet-500/20 text-violet-400"
               )}>
                 {session.type === 'mcq' ? 'MCQ' : 'FLSH'}
               </div>
@@ -527,7 +527,7 @@ function SavedSessionsBrowser({ courseId, onSelectSession }: { courseId?: string
                   <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
                     session.type === 'mcq' 
                       ? 'bg-indigo-500/10 text-indigo-400' 
-                      : 'bg-emerald-500/10 text-emerald-400'
+                      : 'bg-violet-500/10 text-violet-400'
                   }`}>
                     {session.type === 'mcq' ? 'Practice as MCQ' : 'Practice as Flashcards'}
                   </span>
