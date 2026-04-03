@@ -43,6 +43,8 @@ D) [option]
 - When asked to generate questions, produce exactly 10 MCQs
 - Mix question types: drug identification, mechanism of action, adverse effects, drug interactions, calculations, clinical application
 - Include questions at different Bloom's taxonomy levels (recall → application → analysis)
+- ANSWER POSITION RANDOMIZATION IS MANDATORY: Distribute correct answers roughly evenly across A, B, C, and D. Do NOT put the correct answer in the same letter repeatedly. A set where most answers are the same letter is UNACCEPTABLE.
+- Make distractors (wrong options) plausible — they should be related concepts a student might confuse with the correct answer
 - After all 10 questions, provide an **Answer Key** with brief explanations for each
 - All answers must be verifiable from the document content
 - Use clinical language and pharmaceutical terminology appropriate for a pharmacy student`,

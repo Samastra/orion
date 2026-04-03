@@ -364,10 +364,141 @@ export async function getSavedQuestions(courseId: string) {
     .from('saved_questions')
     .select('*')
     .eq('course_id', courseId)
+    .is('session_id', null) // Only legacy/loose questions
     .order('created_at', { ascending: false });
 
   if (error) return { error: error.message };
   return { data };
+}
+
+export async function getQuestionSessions(courseId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('question_sessions')
+    .select('*')
+    .eq('course_id', courseId)
+    .order('created_at', { ascending: false });
+
+  if (error) return { error: error.message };
+
+  // Check for orphan questions (session_id = null)
+  const { data: orphans, error: countError } = await supabase
+    .from('saved_questions')
+    .select('id, question_type')
+    .eq('course_id', courseId)
+    .is('session_id', null);
+
+  if (!countError && orphans && orphans.length > 0) {
+    // Split orphans into separate legacy sessions by type
+    const legacySessions: any[] = [];
+
+    const mcqOrphans = orphans.filter((q: any) => q.question_type === 'mcq');
+    const flashcardOrphans = orphans.filter((q: any) => q.question_type !== 'mcq');
+
+    if (flashcardOrphans.length > 0) {
+      legacySessions.push({
+        id: 'legacy-flashcard',
+        title: `General Study Set (${flashcardOrphans.length} cards)`,
+        type: 'flashcard',
+        created_at: new Date().toISOString(),
+        is_legacy: true
+      });
+    }
+
+    if (mcqOrphans.length > 0) {
+      legacySessions.push({
+        id: 'legacy-mcq',
+        title: `General Study Set (${mcqOrphans.length} questions)`,
+        type: 'mcq',
+        created_at: new Date().toISOString(),
+        is_legacy: true
+      });
+    }
+
+    return { data: [...legacySessions, ...(data || [])] };
+  }
+
+  return { data };
+}
+
+export async function getSessionQuestions(sessionId: string, courseId: string) {
+  const supabase = await createClient();
+  
+  if (!courseId) return { error: 'courseId is required', data: [] };
+
+  // Handle legacy sessions split by type — ALWAYS filter by course_id
+  if (sessionId === 'legacy-flashcard' || sessionId === 'legacy') {
+    const { data, error } = await supabase
+      .from('saved_questions')
+      .select('*')
+      .eq('course_id', courseId)
+      .is('session_id', null)
+      .in('question_type', ['flashcard'])
+      .order('created_at', { ascending: true });
+    if (error) return { error: error.message };
+    return { data };
+  }
+
+  if (sessionId === 'legacy-mcq') {
+    const { data, error } = await supabase
+      .from('saved_questions')
+      .select('*')
+      .eq('course_id', courseId)
+      .is('session_id', null)
+      .eq('question_type', 'mcq')
+      .order('created_at', { ascending: true });
+    if (error) return { error: error.message };
+    return { data };
+  }
+
+  // Regular sessions — filter by BOTH session_id AND course_id for safety
+  const { data, error } = await supabase
+    .from('saved_questions')
+    .select('*')
+    .eq('session_id', sessionId)
+    .eq('course_id', courseId)
+    .order('created_at', { ascending: true });
+
+  if (error) return { error: error.message };
+  return { data };
+}
+
+export async function createQuestionSession(courseId: string, title: string, type: 'mcq' | 'flashcard', items: any[]) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  // 1. Create the session
+  const { data: session, error: sessionError } = await supabase
+    .from('question_sessions')
+    .insert([{ 
+      course_id: courseId, 
+      user_id: user.id, 
+      title, 
+      type 
+    }])
+    .select()
+    .single();
+
+  if (sessionError) return { error: sessionError.message };
+
+  // 2. Bulk insert the questions
+  const questionsToInsert = items.map(item => ({
+    course_id: courseId,
+    user_id: user.id,
+    session_id: session.id,
+    question_type: type,
+    question_data: item
+  }));
+
+  const { error: questionsError } = await supabase
+    .from('saved_questions')
+    .insert(questionsToInsert);
+
+  if (questionsError) return { error: questionsError.message };
+
+  revalidatePath(`/dashboard/courses/${courseId}`);
+  return { success: true, sessionId: session.id };
 }
 
 export async function createSavedQuestion(formData: FormData) {

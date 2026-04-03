@@ -2,28 +2,57 @@
 
 import React, { useState } from 'react';
 import { MCQCard, MCQQuestion } from './MCQCard';
-import { ChevronLeft, ChevronRight, Trophy, RotateCcw } from 'lucide-react';
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Trophy, 
+  RotateCcw, 
+  BookOpen, 
+  Sparkles, 
+  Check,
+  Layers
+} from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { saveMCQAttempt } from "@/lib/supabase/actions";
+import { saveMCQAttempt, createQuestionSession } from "@/lib/supabase/actions";
 import { toast } from "sonner";
 
 interface MCQSessionProps {
   questions: MCQQuestion[];
   onReset: () => void;
   courseId?: string;
+  suggestedTitle?: string;
 }
 
-export function MCQSession({ questions, onReset, courseId }: MCQSessionProps) {
+export function MCQSession({ questions, onReset, courseId, suggestedTitle }: MCQSessionProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
   const [answered, setAnswered] = useState<boolean[]>(new Array(questions.length).fill(false));
   const [results, setResults] = useState<(boolean | null)[]>(new Array(questions.length).fill(null));
   const [isReviewing, setIsReviewing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [sessionTitle, setSessionTitle] = useState(suggestedTitle || '');
+  const [selectedIndices, setSelectedIndices] = useState<(number | null)[]>(new Array(questions.length).fill(null));
+
+  // Reset state when new questions are provided
+  React.useEffect(() => {
+    setCurrentIndex(0);
+    setScore(0);
+    setAnswered(new Array(questions.length).fill(false));
+    setResults(new Array(questions.length).fill(null));
+    setSelectedIndices(new Array(questions.length).fill(null));
+    setIsReviewing(false);
+    setIsSaved(false);
+  }, [questions]);
+
+  React.useEffect(() => {
+    if (suggestedTitle) setSessionTitle(suggestedTitle);
+  }, [suggestedTitle]);
 
   const totalAnswered = answered.filter(Boolean).length;
   const allDone = totalAnswered === questions.length;
 
-  const handleAnswer = async (isCorrect: boolean) => {
+  const handleAnswer = async (index: number, isCorrect: boolean) => {
     if (answered[currentIndex]) return;
     
     // Optimistic UI updates
@@ -34,6 +63,10 @@ export function MCQSession({ questions, onReset, courseId }: MCQSessionProps) {
     const newResults = [...results];
     newResults[currentIndex] = isCorrect;
     setResults(newResults);
+
+    const newIndices = [...selectedIndices];
+    newIndices[currentIndex] = index;
+    setSelectedIndices(newIndices);
 
     if (isCorrect) setScore((s: number) => s + 1);
 
@@ -56,6 +89,25 @@ export function MCQSession({ questions, onReset, courseId }: MCQSessionProps) {
     }
   };
 
+  const handleSaveSession = async () => {
+    if (!courseId || isSaving || isSaved) return;
+    setIsSaving(true);
+    try {
+      const res = await createQuestionSession(courseId, sessionTitle || "Untitled Session", 'mcq', questions);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        setIsSaved(true);
+        toast.success("Question batch saved to course!");
+      }
+    } catch (err) {
+      toast.error("Failed to save session");
+    } finally {
+      setIsSaving(true); // Keep it disabled
+      setIsSaving(false);
+    }
+  };
+
   const goTo = (index: number) => {
     if (index >= 0 && index < questions.length) setCurrentIndex(index);
   };
@@ -63,56 +115,92 @@ export function MCQSession({ questions, onReset, courseId }: MCQSessionProps) {
   if (allDone && !isReviewing) {
     const percentage = Math.round((score / questions.length) * 100);
     return (
-      <div className="h-full flex items-center justify-center p-6 bg-background">
-        <div className="text-center space-y-5 max-w-sm animate-in fade-in zoom-in duration-500">
-          <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center mx-auto">
-            <Trophy className="w-8 h-8 text-indigo-400" />
-          </div>
-          <div className="space-y-1">
-            <h2 className="text-xl font-semibold text-foreground">Session Complete!</h2>
-            <p className="text-muted-foreground/60 text-sm">
-              You scored <span className="text-foreground font-bold">{score}/{questions.length}</span> ({percentage}%)
-            </p>
-          </div>
+      <div className="h-full overflow-y-auto p-6 bg-background scrollbar-none">
+        <div className="min-h-full flex items-center justify-center py-10">
+          <div className="text-center space-y-6 w-full max-w-lg animate-in fade-in zoom-in duration-500">
+            <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center mx-auto">
+              <Trophy className="w-8 h-8 text-indigo-400" />
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-2xl font-bold text-foreground">Session Complete!</h2>
+              <p className="text-muted-foreground/60 text-sm">
+                You scored <span className="text-foreground font-bold">{score}/{questions.length}</span> ({percentage}%)
+              </p>
+            </div>
 
-          {/* Score bar */}
-          <div className="w-full bg-white/[0.04] rounded-full h-2.5 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-700 ${
-                percentage >= 80 ? 'bg-emerald-500' : percentage >= 50 ? 'bg-indigo-500' : 'bg-rose-500'
-              }`}
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
-
-          <p className="text-[13px] text-muted-foreground/40">
-            {percentage >= 80 ? 'Excellent work! 🎉' : percentage >= 50 ? 'Good effort! Keep reviewing.' : 'Keep studying — you\'ll get there! 💪'}
-          </p>
-
-          {/* Results grid */}
-          <div className="flex flex-wrap gap-1.5 justify-center pt-2">
-            {results.map((r: boolean | null, i: number) => (
-              <button
-                key={i}
-                onClick={() => { setCurrentIndex(i); setIsReviewing(true); }}
-                className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold cursor-pointer transition-all hover:scale-110 active:scale-95 ${
-                  r ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/15 text-rose-400 border border-rose-500/20'
+            {/* Score bar */}
+            <div className="w-full bg-white/[0.04] rounded-full h-2.5 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-all duration-700 ${
+                  percentage >= 80 ? 'bg-emerald-500' : percentage >= 50 ? 'bg-indigo-500' : 'bg-rose-500'
                 }`}
-              >
-                {i + 1}
-              </button>
-            ))}
-          </div>
+                style={{ width: `${percentage}%` }}
+              />
+            </div>
 
-          <div className="flex flex-col gap-2 pt-3">
-            <Button onClick={() => setIsReviewing(true)} variant="outline" className="border-white/5 bg-white/5 hover:bg-white/10 text-foreground rounded-xl gap-2 h-11">
-              <BookOpen className="w-4 h-4" />
-              Review Answers
-            </Button>
-            <Button onClick={onReset} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 h-11 shadow-[0_0_20px_rgba(79,70,229,0.2)]">
-              <RotateCcw className="w-4 h-4" />
-              Generate New Set
-            </Button>
+            <p className="text-[13px] text-muted-foreground/40">
+              {percentage >= 80 ? 'Excellent work! 🎉' : percentage >= 50 ? 'Good effort! Keep reviewing.' : 'Keep studying — you\'ll get there! 💪'}
+            </p>
+
+            {/* Results grid */}
+            <div className="flex flex-wrap gap-1.5 justify-center">
+              {results.map((r: boolean | null, i: number) => (
+                <button
+                  key={i}
+                  onClick={() => { setCurrentIndex(i); setIsReviewing(true); }}
+                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold cursor-pointer transition-all hover:scale-110 active:scale-95 ${
+                    r ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/15 text-rose-400 border border-rose-500/20'
+                  }`}
+                >
+                  {i + 1}
+                </button>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="space-y-3 pt-2">
+              {courseId && !isSaved && (
+                <div className="flex flex-col gap-2.5 p-4 bg-white/[0.03] rounded-xl border border-white/5">
+                   <div className="flex items-center gap-2 px-1">
+                      <Sparkles className="w-3 h-3 text-indigo-400" />
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">AI Suggested Title</span>
+                   </div>
+                   <input 
+                     type="text"
+                     value={sessionTitle}
+                     onChange={(e) => setSessionTitle(e.target.value)}
+                     className="bg-white/[0.03] border border-white/5 rounded-lg focus:ring-1 focus:ring-indigo-500 focus:outline-none text-sm font-bold text-foreground placeholder:text-muted-foreground/30 px-3 py-2 w-full"
+                     placeholder="Enter session title..."
+                   />
+                   <Button 
+                     onClick={handleSaveSession} 
+                     disabled={isSaving}
+                     className="w-full bg-indigo-600 hover:bg-indigo-500 text-white shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 rounded-lg h-10 gap-2 text-xs font-bold transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none"
+                   >
+                     {isSaving ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Layers className="w-3.5 h-3.5" />}
+                     Save Batch to Course
+                   </Button>
+                </div>
+              )}
+
+              {isSaved && (
+                <div className="flex items-center justify-center gap-2 py-3 px-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl text-emerald-400 text-[11px] font-bold uppercase tracking-widest">
+                  <Check className="w-4 h-4" />
+                  Batch Saved
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button onClick={() => setIsReviewing(true)} variant="outline" className="border-white/5 bg-white/5 hover:bg-white/10 text-foreground rounded-xl gap-2 h-12 font-bold transition-all hover:translate-y-[-1px] active:translate-y-[0px]">
+                  <BookOpen className="w-4 h-4" />
+                  Review Answers
+                </Button>
+                <Button onClick={onReset} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 h-12 font-bold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none">
+                  <RotateCcw className="w-4 h-4" />
+                  New Set
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -178,13 +266,14 @@ export function MCQSession({ questions, onReset, courseId }: MCQSessionProps) {
         </div>
       </div>
 
-      {/* Current question */}
       <div className="flex-1 overflow-auto px-5 py-4">
         <MCQCard
           key={currentIndex}
           question={questions[currentIndex]}
           questionNumber={currentIndex + 1}
           onAnswer={handleAnswer}
+          initialSelected={selectedIndices[currentIndex]}
+          initialRevealed={answered[currentIndex] || isReviewing}
         />
       </div>
 

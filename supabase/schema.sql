@@ -41,17 +41,37 @@ CREATE TABLE IF NOT EXISTS public.notes (
   CONSTRAINT notes_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE
 ) TABLESPACE pg_default;
 
--- 4. Saved Questions Table (Flashcards & MCQs)
+-- 4. Question Sessions Table (Titled batches of questions)
+CREATE TABLE IF NOT EXISTS public.question_sessions (
+  id uuid NOT NULL DEFAULT gen_random_uuid (),
+  course_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  title text NOT NULL DEFAULT 'Untitled Session',
+  type text NOT NULL DEFAULT 'flashcard',
+  created_at timestamp WITH time zone NULL DEFAULT now(),
+  CONSTRAINT question_sessions_pkey PRIMARY KEY (id),
+  CONSTRAINT question_sessions_course_id_fkey FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+  CONSTRAINT question_sessions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE,
+  CONSTRAINT question_sessions_type_check CHECK (
+    (
+      type = ANY (ARRAY['mcq'::text, 'flashcard'::text])
+    )
+  )
+) TABLESPACE pg_default;
+
+-- 5. Saved Questions Table (Flashcards & MCQs, linked to sessions)
 CREATE TABLE IF NOT EXISTS public.saved_questions (
   id uuid NOT NULL DEFAULT gen_random_uuid (),
   course_id uuid NOT NULL,
   user_id uuid NOT NULL,
+  session_id uuid NULL,
   question_data jsonb NOT NULL,
   question_type text NULL,
   created_at timestamp WITH time zone NULL DEFAULT now(),
   CONSTRAINT saved_questions_pkey PRIMARY KEY (id),
   CONSTRAINT saved_questions_course_id_fkey FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
   CONSTRAINT saved_questions_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users (id) ON DELETE CASCADE,
+  CONSTRAINT saved_questions_session_id_fkey FOREIGN KEY (session_id) REFERENCES question_sessions (id) ON DELETE CASCADE,
   CONSTRAINT saved_questions_question_type_check CHECK (
     (
       question_type = ANY (ARRAY['mcq'::text, 'flashcard'::text])
@@ -65,6 +85,7 @@ CREATE TABLE IF NOT EXISTS public.saved_questions (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.question_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.saved_questions ENABLE ROW LEVEL SECURITY;
 
 -- 6. RLS Policies
@@ -95,6 +116,13 @@ CREATE POLICY "Users can view own notes" ON notes FOR SELECT USING (auth.uid() =
 
 DROP POLICY IF EXISTS "Users can manage own notes" ON notes;
 CREATE POLICY "Users can manage own notes" ON notes FOR ALL USING (auth.uid() = user_id);
+
+-- Question Sessions Policies
+DROP POLICY IF EXISTS "Users can view own sessions" ON question_sessions;
+CREATE POLICY "Users can view own sessions" ON question_sessions FOR SELECT USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "Users can manage own sessions" ON question_sessions;
+CREATE POLICY "Users can manage own sessions" ON question_sessions FOR ALL USING (auth.uid() = user_id);
 
 -- Saved Questions Policies
 DROP POLICY IF EXISTS "Users can view own questions" ON saved_questions;

@@ -12,6 +12,7 @@ import {
   List,
   Loader2,
   BookPlus,
+  BookOpen,
   ArrowRight,
   Save,
   Shuffle,
@@ -59,10 +60,11 @@ export default function PracticePage() {
   const [selectedNote, setSelectedNote] = useState<NoteNode | null>(null);
   const [topicFocus, setTopicFocus] = useState('');
   const [noteMode, setNoteMode] = useState<'all' | 'topic' | null>(null);
+  const [initialPracticeType, setInitialPracticeType] = useState<string | undefined>(undefined);
 
   // Save questions state
   const [generatedQuestions, setGeneratedQuestions] = useState<any[] | null>(null);
-  const [generatedType, setGeneratedType] = useState<'mcq' | 'flashcard'>('mcq');
+  const [generatedType, setGeneratedType] = useState<'mcq' | 'flashcard' | 'saved'>('mcq');
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
 
@@ -113,6 +115,14 @@ export default function PracticePage() {
     setIsContextLoading(false);
   };
 
+  // Step 2c: User picks "Saved Sessions"
+  const handleSavedScope = () => {
+    if (!selectedCourse) return;
+    setInitialPracticeType('saved');
+    setCourseContext(null);
+    setScopeStep('practice');
+  };
+
   // Step 2b: User picks a specific note
   const handleSelectNote = (note: NoteNode) => {
     setSelectedNote(note);
@@ -136,7 +146,7 @@ export default function PracticePage() {
   };
 
   // Save all generated questions
-  const handleQuestionsGenerated = (questions: any[], type: 'mcq' | 'flashcard') => {
+  const handleQuestionsGenerated = (questions: any[], type: 'mcq' | 'flashcard' | 'saved') => {
     setGeneratedQuestions(questions);
     setGeneratedType(type);
     setIsSaved(false);
@@ -176,6 +186,7 @@ export default function PracticePage() {
     setScopeStep('courses');
     setGeneratedQuestions(null);
     setIsSaved(false);
+    setInitialPracticeType(undefined);
   };
 
   // Go back to scope selection from practice
@@ -255,6 +266,7 @@ export default function PracticePage() {
               courseId={selectedCourse.id}
               topicFocus={topicFocus || undefined}
               onQuestionsGenerated={handleQuestionsGenerated}
+              initialType={initialPracticeType as any}
             />
           )}
         </div>
@@ -289,7 +301,7 @@ export default function PracticePage() {
             <p className="text-sm font-medium tracking-wide uppercase">Loading notes...</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {/* Random Card */}
             <div
               onClick={handleRandomScope}
@@ -302,11 +314,32 @@ export default function PracticePage() {
                 <div className="space-y-1">
                   <h3 className="text-lg font-bold text-foreground/90 group-hover:text-indigo-400 transition-colors">Random — All Notes</h3>
                   <p className="text-[12px] text-muted-foreground/50 leading-relaxed">
-                    Generate questions from all {courseNotes.length} note{courseNotes.length !== 1 ? 's' : ''} in this course. Best for comprehensive review.
+                    Generate questions from all {courseNotes.length} note{courseNotes.length !== 1 ? 's' : ''}. Best for comprehensive review.
                   </p>
                 </div>
               </div>
               <div className="absolute top-6 right-6 w-8 h-8 rounded-full bg-white/5 border border-white/5 flex items-center justify-center group-hover:bg-indigo-600 group-hover:border-indigo-500 group-hover:text-white transition-all">
+                <ArrowRight className="w-4 h-4" />
+              </div>
+            </div>
+
+            {/* Saved Sessions Card */}
+            <div
+              onClick={handleSavedScope}
+              className="group relative cursor-pointer bg-white/[0.02] border border-white/5 rounded-3xl p-6 hover:bg-white/[0.04] hover:border-emerald-500/30 transition-all duration-300"
+            >
+              <div className="space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <BookOpen className="w-6 h-6 text-emerald-400" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-lg font-bold text-foreground/90 group-hover:text-emerald-400 transition-colors">Saved Study Sets</h3>
+                  <p className="text-[12px] text-muted-foreground/50 leading-relaxed">
+                    Re-practice your previously generated and titled question batches. Organized and focused review.
+                  </p>
+                </div>
+              </div>
+              <div className="absolute top-6 right-6 w-8 h-8 rounded-full bg-white/5 border border-white/5 flex items-center justify-center group-hover:bg-emerald-600 group-hover:border-emerald-500 group-hover:text-white transition-all">
                 <ArrowRight className="w-4 h-4" />
               </div>
             </div>

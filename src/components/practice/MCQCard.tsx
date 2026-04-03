@@ -14,20 +14,28 @@ export interface MCQQuestion {
 interface MCQCardProps {
   question: MCQQuestion;
   questionNumber: number;
-  onAnswer: (isCorrect: boolean) => void;
+  onAnswer: (index: number, isCorrect: boolean) => void;
+  initialSelected?: number | null;
+  initialRevealed?: boolean;
 }
 
 const OPTION_LABELS = ['A', 'B', 'C', 'D'];
 
-export function MCQCard({ question, questionNumber, onAnswer }: MCQCardProps) {
-  const [selected, setSelected] = useState<number | null>(null);
-  const [revealed, setRevealed] = useState(false);
+export function MCQCard({ 
+  question, 
+  questionNumber, 
+  onAnswer,
+  initialSelected = null,
+  initialRevealed = false
+}: MCQCardProps) {
+  const [selected, setSelected] = useState<number | null>(initialSelected);
+  const [revealed, setRevealed] = useState(initialRevealed);
 
   const handleSelect = (index: number) => {
     if (revealed) return;
     setSelected(index);
     setRevealed(true);
-    onAnswer(index === question.correctIndex);
+    onAnswer(index, index === question.correctIndex);
   };
 
   return (
