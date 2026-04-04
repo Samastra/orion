@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Mic, Plus, BookOpen, Dumbbell, ChevronDown, Square } from 'lucide-react';
+import { Send, Mic, Plus, BookOpen, Dumbbell, ChevronDown, Square, Sparkles, Wand2, FileText, LayoutList, BrainCircuit, MessageSquare } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from 'react-markdown';
@@ -9,6 +9,8 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 import { PracticeView } from '@/components/practice/PracticeView';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useUser } from '@/components/auth/UserAvatar';
 
 interface Message {
   role: 'ai' | 'user';
@@ -25,8 +27,6 @@ interface ChatInterfaceProps {
   selectionAction?: { action: string; text: string } | null;
   courseId?: string;
 }
-
-const INITIAL_GREETING = "Ready to master this material? Ask me to explain any concept from the text, or switch to **Practice** mode to test what you've learned so far.";
 
 function ts() {
   return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -89,11 +89,78 @@ function ModeToggle({ mode, showMenu, setShowMenu, switchMode, menuRef }: ModeTo
   );
 }
 
+// ─── Welcome Component ──────────────────────────────────────────────
+interface WelcomeScreenProps {
+  userName?: string;
+  onAction: (action: string) => void;
+  children?: React.ReactNode;
+}
+
+function WelcomeScreen({ userName, onAction, children }: WelcomeScreenProps) {
+  const actions = [
+    { id: 'summarize', label: 'Summarize', icon: FileText, color: 'text-blue-400' },
+    { id: 'concepts', label: 'Key Concepts', icon: LayoutList, color: 'text-indigo-400' },
+    { id: 'quiz', label: 'Practice Quiz', icon: BrainCircuit, color: 'text-violet-400' },
+    { id: 'chat', label: 'Ask anything', icon: MessageSquare, color: 'text-emerald-400' },
+  ];
+
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center p-6 space-y-8 max-w-2xl mx-auto w-full min-h-[500px]">
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: 'easeOut' }}
+        className="text-center space-y-2 mb-4"
+      >
+        <h2 className="text-[12px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-40">
+          Hi{userName ? `, ${userName}` : ''}
+        </h2>
+        <h1 className="text-3xl md:text-3xl font-bold tracking-tight text-foreground/90 leading-tight">
+          Where should we start?
+        </h1>
+      </motion.div>
+
+      {/* The Centered Input Section */}
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.1, duration: 0.5 }}
+        className="w-full max-w-xl"
+      >
+        {children}
+      </motion.div>
+
+      {/* Small Action Chips (Pills) */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.6 }}
+        className="flex flex-wrap items-center justify-center gap-2 max-w-lg"
+      >
+        {actions.map((action) => (
+          <button
+            key={action.id}
+            onClick={() => onAction(action.id)}
+            className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/[0.03] border border-white/[0.05] hover:bg-white/[0.06] hover:border-white/[0.1] transition-all group cursor-pointer"
+          >
+            <action.icon className={cn("w-3.5 h-3.5 opacity-60 group-hover:opacity-100", action.color)} />
+            <span className="text-[11px] font-bold text-muted-foreground/60 group-hover:text-foreground transition-colors uppercase tracking-widest">
+              {action.label}
+            </span>
+          </button>
+        ))}
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── Main Chat Interface ────────────────────────────────────────────
 export const ChatInterface = React.forwardRef<
   { clearChat: () => void },
   ChatInterfaceProps
 >(({ sessionId, context, fileName, selectionAction, courseId }, ref) => {
+  const { user } = useUser();
+  const userName = user?.user_metadata?.nickname || user?.user_metadata?.full_name?.split(' ')[0];
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -121,10 +188,17 @@ export const ChatInterface = React.forwardRef<
     if (!sessionId) return;
     const saved = localStorage.getItem(`study-chat-${sessionId}`);
     if (saved) {
-      try { setMessages(JSON.parse(saved)); }
-      catch { setMessages([{ role: 'ai', content: INITIAL_GREETING, timestamp: ts() }]); }
+      try { 
+        let parsed = JSON.parse(saved);
+        // SANITIZE: Remove the legacy "Ready to master this material" message if it's the only one
+        if (parsed.length === 1 && parsed[0].role === 'ai' && parsed[0].content.includes('Ready to master')) {
+          parsed = [];
+        }
+        setMessages(parsed); 
+      }
+      catch { setMessages([]); }
     } else {
-      setMessages([{ role: 'ai', content: INITIAL_GREETING, timestamp: ts() }]);
+      setMessages([]);
     }
   }, [sessionId]);
 
@@ -194,13 +268,6 @@ export const ChatInterface = React.forwardRef<
     sendToAI(updatedMessages);
   }, [selectionAction, isLoading, messages, sendToAI]);
 
-  // Document greeting
-  useEffect(() => {
-    if (fileName && context && messages.length <= 1) {
-      setMessages([{ role: 'ai', content: INITIAL_GREETING, timestamp: ts() }]);
-    }
-  }, [fileName, context, messages.length]);
-
   const switchMode = (newMode: StudyMode) => { setMode(newMode); setShowModeMenu(false); };
 
   const handleSend = () => {
@@ -225,7 +292,7 @@ export const ChatInterface = React.forwardRef<
   };
 
   const clearChat = () => {
-    setMessages([{ role: 'ai', content: INITIAL_GREETING, timestamp: ts() }]);
+    setMessages([]);
     if (sessionId) localStorage.removeItem(`study-chat-${sessionId}`);
   };
 
@@ -233,6 +300,51 @@ export const ChatInterface = React.forwardRef<
   React.useImperativeHandle(ref, () => ({
     clearChat,
   }));
+
+  const inputBar = (
+    <div className="bg-white/[0.03] border border-white/[0.08] rounded-[28px] transition-all focus-within:border-indigo-500/30 focus-within:bg-white/[0.05] shadow-2xl shadow-black/20">
+      <textarea
+        ref={textareaRef}
+        value={input}
+        onChange={handleInputChange}
+        onKeyDown={handleKeyDown}
+        placeholder="Ask about the document..."
+        rows={1}
+        className="w-full bg-transparent px-6 pt-5 pb-2 text-[14px] text-foreground placeholder:text-muted-foreground/30 resize-none outline-none font-medium selection:bg-indigo-500/30"
+        style={{ minHeight: '32px', maxHeight: '120px' }}
+      />
+      <div className="flex items-center justify-between px-3 pb-3">
+        <div className="flex items-center gap-1.5">
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground/30 hover:text-muted-foreground hover:bg-white/5">
+            <Plus className="w-4 h-4" />
+          </Button>
+          <ModeToggle mode={mode} showMenu={showModeMenu} setShowMenu={setShowModeMenu} switchMode={switchMode} menuRef={modeMenuRef} />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full text-muted-foreground/30 hover:text-muted-foreground hover:bg-white/5">
+            <Mic className="w-4 h-4" />
+          </Button>
+          <Button
+            onClick={isLoading ? handleStop : handleSend}
+            disabled={!isLoading && !input.trim()}
+            size="icon"
+            className={cn(
+              "h-8 w-8 rounded-full transition-all",
+              isLoading 
+                ? "bg-rose-600 hover:bg-rose-500 shadow-lg shadow-rose-900/20" 
+                : "bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:bg-white/5 shadow-lg shadow-indigo-900/20"
+            )}
+          >
+            {isLoading ? (
+              <Square className="w-2.5 h-2.5 text-white fill-white" />
+            ) : (
+              <Send className="w-4 h-4 text-white" />
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="h-full flex flex-col bg-background min-h-0 border-l border-white/[0.06]">
@@ -248,91 +360,98 @@ export const ChatInterface = React.forwardRef<
         /* STUDY MODE — Chat Canvas + Input */
         <>
           {/* Canvas */}
-          <div className="flex-1 overflow-auto min-h-0 px-5 py-6 space-y-6">
-            {messages.map((msg, i) => (
-              <div key={i}>
-                {msg.role === 'user' ? (
-                  <div className="flex items-start gap-2 opacity-60">
-                    <span className="text-[10px] font-semibold text-muted-foreground shrink-0 mt-1 uppercase tracking-wider">You</span>
-                    <div className="text-[13px] text-foreground/70 leading-relaxed">
-                      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{msg.content}</ReactMarkdown>
+          <div className="flex-1 overflow-auto min-h-0 scrollbar-hide flex flex-col">
+            <AnimatePresence mode="wait">
+              {messages.length === 0 ? (
+                <motion.div 
+                  key="welcome"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="flex-1 flex flex-col"
+                >
+                  <WelcomeScreen 
+                    userName={userName} 
+                    onAction={(actionId) => {
+                      const prompts: Record<string, string> = {
+                        summarize: "Summarize this document for me.",
+                        concepts: "What are the key concepts I need to know from this text?",
+                        quiz: "Create a practice quiz based on this content.",
+                        chat: "I have a specific question about this document...",
+                      };
+                      const content = prompts[actionId];
+                      if (content) {
+                        const userMsg: Message = { role: 'user', content, timestamp: ts() };
+                        const updated = [...messages, userMsg];
+                        setMessages(updated);
+                        sendToAI(updated);
+                      }
+                    }} 
+                  >
+                    {inputBar}
+                  </WelcomeScreen>
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="chat"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="px-5 py-6 space-y-8 flex-1"
+                >
+                  {messages.map((msg, i) => (
+                    <div key={i} className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      {msg.role === 'user' ? (
+                        <div className="flex items-start gap-2 opacity-60">
+                          <span className="text-[10px] font-bold text-muted-foreground shrink-0 mt-1 uppercase tracking-widest bg-white/5 px-1.5 py-0.5 rounded">You</span>
+                          <div className="text-[13px] text-foreground/70 leading-relaxed font-medium">
+                            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{msg.content}</ReactMarkdown>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="prose prose-invert prose-sm max-w-none 
+                          [&_p]:text-[13.5px] [&_p]:leading-[1.75] [&_p]:text-foreground/90
+                          [&_strong]:text-foreground [&_strong]:font-semibold
+                          [&_h1]:text-base [&_h1]:font-semibold [&_h1]:text-foreground [&_h1]:mt-4 [&_h1]:mb-2
+                          [&_h2]:text-[15px] [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-3 [&_h2]:mb-1.5
+                          [&_h3]:text-[14px] [&_h3]:font-medium [&_h3]:text-foreground/90
+                          [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5 [&_li]:text-[13.5px] [&_li]:leading-[1.75]
+                          [&_blockquote]:border-l-2 [&_blockquote]:border-indigo-500/30 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-foreground/50
+                          [&_code]:bg-white/[0.06] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[12px] [&_code]:font-mono
+                          [&_hr]:border-white/[0.06] [&_hr]:my-4
+                        ">
+                          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{msg.content}</ReactMarkdown>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                ) : (
-                  <div className="prose prose-invert prose-sm max-w-none 
-                    [&_p]:text-[13.5px] [&_p]:leading-[1.75] [&_p]:text-foreground/90
-                    [&_strong]:text-foreground [&_strong]:font-semibold
-                    [&_h1]:text-base [&_h1]:font-semibold [&_h1]:text-foreground [&_h1]:mt-4 [&_h1]:mb-2
-                    [&_h2]:text-[15px] [&_h2]:font-semibold [&_h2]:text-foreground [&_h2]:mt-3 [&_h2]:mb-1.5
-                    [&_h3]:text-[14px] [&_h3]:font-medium [&_h3]:text-foreground/90
-                    [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5 [&_li]:text-[13.5px] [&_li]:leading-[1.75]
-                    [&_blockquote]:border-l-2 [&_blockquote]:border-indigo-500/30 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-foreground/50
-                    [&_code]:bg-white/[0.06] [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[12px] [&_code]:font-mono
-                    [&_hr]:border-white/[0.06] [&_hr]:my-4
-                  ">
-                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>{msg.content}</ReactMarkdown>
-                  </div>
-                )}
-              </div>
-            ))}
-            {isLoading && (
-              <div className="flex items-center gap-2 py-2">
-                <div className="flex gap-1">
-                  <div className="w-1.5 h-1.5 rounded-full animate-bounce bg-indigo-400/60" style={{ animationDelay: '0ms' }} />
-                  <div className="w-1.5 h-1.5 rounded-full animate-bounce bg-indigo-400/60" style={{ animationDelay: '150ms' }} />
-                  <div className="w-1.5 h-1.5 rounded-full animate-bounce bg-indigo-400/60" style={{ animationDelay: '300ms' }} />
-                </div>
-                <span className="text-[11px] text-muted-foreground/30 font-medium">Thinking...</span>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
+                  ))}
+                  {isLoading && (
+                    <div className="flex items-center gap-2 py-2 text-indigo-400/40">
+                      <div className="flex gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full animate-bounce bg-current" style={{ animationDelay: '0ms' }} />
+                        <div className="w-1.5 h-1.5 rounded-full animate-bounce bg-current" style={{ animationDelay: '150ms' }} />
+                        <div className="w-1.5 h-1.5 rounded-full animate-bounce bg-current" style={{ animationDelay: '300ms' }} />
+                      </div>
+                      <span className="text-[11px] font-bold uppercase tracking-widest">Processing...</span>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
-          {/* Input Bar */}
-          <div className="shrink-0 p-3 pt-0">
-            <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl transition-colors focus-within:border-indigo-500/30">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask about the document..."
-                rows={1}
-                className="w-full bg-transparent px-4 pt-3 pb-1 text-[13px] text-foreground placeholder:text-muted-foreground/30 resize-none outline-none font-medium"
-                style={{ minHeight: '24px', maxHeight: '120px' }}
-              />
-              <div className="flex items-center justify-between px-2 pb-2">
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-xl text-muted-foreground/30 hover:text-muted-foreground hover:bg-white/5">
-                    <Plus className="w-4 h-4" />
-                  </Button>
-                  <ModeToggle mode={mode} showMenu={showModeMenu} setShowMenu={setShowModeMenu} switchMode={switchMode} menuRef={modeMenuRef} />
-                </div>
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-xl text-muted-foreground/30 hover:text-muted-foreground hover:bg-white/5">
-                    <Mic className="w-3.5 h-3.5" />
-                  </Button>
-                  <Button
-                    onClick={isLoading ? handleStop : handleSend}
-                    disabled={!isLoading && !input.trim()}
-                    size="icon"
-                    className={cn(
-                      "h-7 w-7 rounded-xl transition-all",
-                      isLoading 
-                        ? "bg-rose-600 hover:bg-rose-500 animate-in fade-in zoom-in duration-200" 
-                        : "bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:bg-white/5"
-                    )}
-                  >
-                    {isLoading ? (
-                      <Square className="w-2.5 h-2.5 text-white fill-white" />
-                    ) : (
-                      <Send className="w-3.5 h-3.5 text-white" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Fixed Bottom Input Bar (shown only when messages exist) */}
+          <AnimatePresence>
+            {messages.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="shrink-0 p-3 pt-0"
+              >
+                {inputBar}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </>
       )}
     </div>

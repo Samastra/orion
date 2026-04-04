@@ -83,9 +83,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No content provided' }, { status: 400 });
     }
 
-    const apiKey = process.env['DEEPSEEK_API-KEY'];
+    const apiKey = process.env['DEEPSEEK_API_KEY'];
     if (!apiKey) {
-      return NextResponse.json({ error: 'DeepSeek API key not configured' }, { status: 500 });
+      console.error('DEEPSEEK_API_KEY is not set in environment');
+      return NextResponse.json({ error: 'The tutor is temporarily unavailable. Please try again later.' }, { status: 500 });
     }
 
     const response = await fetch(DEEPSEEK_API_URL, {

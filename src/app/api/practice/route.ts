@@ -108,6 +108,7 @@ export async function POST(req: NextRequest) {
           { role: 'user', content: `Generate ${count} ${type === 'flashcard' ? 'flashcards' : 'MCQs'} now with ${difficulty} difficulty. Respond with ONLY the JSON object containing 'title' and 'items'.` },
         ],
         temperature: 0.7,
+        response_format: { type: 'json_object' },
         max_tokens: 4000,
         stream: false,
       }),

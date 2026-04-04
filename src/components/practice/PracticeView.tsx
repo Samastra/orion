@@ -1,5 +1,3 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
 import { ListChecks, Layers, ArrowRight, Loader2, AlertCircle, BookOpen, Calendar, ChevronRight as ChevronRightIcon, Settings2, Sparkles } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -54,6 +52,9 @@ export function PracticeView({ context, courseId, topicFocus, initialType, onQue
     difficulty: 'Medium'
   });
 
+  // Modal open state
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+
   const hasActiveSession = practiceType === 'mcq' ? mcqQuestions !== null : flashcards !== null;
 
   const generate = async () => {
@@ -93,7 +94,12 @@ export function PracticeView({ context, courseId, topicFocus, initialType, onQue
       }
     } catch (err: any) {
       console.error('Generation failed:', err);
-      setError(err.message || 'Failed to generate. Try again.');
+      // More descriptive error for JSON parsing failures
+      if (err instanceof SyntaxError || err.message?.includes('invalid format')) {
+        setError('The AI return an invalid format. Please try again with a slightly different difficulty or count.');
+      } else {
+        setError(err.message || 'Failed to generate. Try again.');
+      }
     } finally {
       setIsGenerating(false);
     }
@@ -115,6 +121,8 @@ export function PracticeView({ context, courseId, topicFocus, initialType, onQue
           showSaved={() => setPracticeType('saved')}
           config={config}
           onConfigChange={setConfig}
+          isOpen={isConfigOpen}
+          setIsOpen={setIsConfigOpen}
         />
         <div className="flex-1 min-h-0">
           <MCQSession 
@@ -137,6 +145,8 @@ export function PracticeView({ context, courseId, topicFocus, initialType, onQue
           showSaved={() => setPracticeType('saved')}
           config={config}
           onConfigChange={setConfig}
+          isOpen={isConfigOpen}
+          setIsOpen={setIsConfigOpen}
         />
         <div className="flex-1 min-h-0">
           <FlashcardSession 
@@ -159,6 +169,8 @@ export function PracticeView({ context, courseId, topicFocus, initialType, onQue
           setType={(t) => { setPracticeType(t); reset(); }} 
           config={config}
           onConfigChange={setConfig}
+          isOpen={isConfigOpen}
+          setIsOpen={setIsConfigOpen}
         />
         <div className="flex-1 min-h-0">
           <SavedSessionsBrowser 
@@ -166,7 +178,6 @@ export function PracticeView({ context, courseId, topicFocus, initialType, onQue
              onSelectSession={(session, questions) => {
                setSuggestedTitle(session.title);
                if (session.type === 'mcq') {
-                 // Defensive: only include questions that actually have MCQ data
                  const validMcqs = questions
                    .map((q: any) => q.question_data)
                    .filter((d: any) => d && d.options && Array.isArray(d.options) && d.correctIndex !== undefined);
@@ -176,7 +187,6 @@ export function PracticeView({ context, courseId, topicFocus, initialType, onQue
                    setPracticeType('mcq');
                  }
                } else {
-                 // Normalize: DB may store {question,answer} or {front,back}
                  const normalized = questions.map((q: any, i: number) => {
                    const d = q.question_data || {};
                    return {
@@ -204,6 +214,8 @@ export function PracticeView({ context, courseId, topicFocus, initialType, onQue
         setType={setPracticeType} 
         config={config}
         onConfigChange={setConfig}
+        isOpen={isConfigOpen}
+        setIsOpen={setIsConfigOpen}
       />
 
       <div className="flex-1 flex items-center justify-center p-6">
@@ -225,7 +237,7 @@ export function PracticeView({ context, courseId, topicFocus, initialType, onQue
               </div>
               <div className="space-y-1">
                 <h3 className="text-sm font-semibold text-foreground/80">Generation failed</h3>
-                <p className="text-[12px] text-muted-foreground/40">{error}</p>
+                <p className="text-[12px] text-muted-foreground/40 leading-relaxed px-4">{error}</p>
               </div>
               <Button onClick={generate} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 px-5 text-[12px]">
                 Try Again
@@ -271,15 +283,18 @@ export function PracticeView({ context, courseId, topicFocus, initialType, onQue
 function PracticeTabs({ 
   type, 
   setType, 
-  showSaved,
   config,
-  onConfigChange
+  onConfigChange,
+  isOpen,
+  setIsOpen
 }: { 
   type: PracticeType; 
   setType: (t: PracticeType) => void; 
   showSaved?: () => void;
   config: PracticeConfig;
   onConfigChange: (c: PracticeConfig) => void;
+  isOpen: boolean;
+  setIsOpen: (o: boolean) => void;
 }) {
   return (
     <div className="shrink-0 px-3 py-2 border-b border-white/[0.06] flex items-center justify-between bg-black/20 backdrop-blur-sm">
@@ -321,7 +336,7 @@ function PracticeTabs({
       </div>
 
       {/* Settings Dialog Trigger */}
-      <Dialog>
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
           <button className="p-2 rounded-lg text-muted-foreground/40 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer group">
             <Settings2 className="w-4 h-4 transition-transform group-hover:rotate-90 duration-500" />
@@ -329,15 +344,11 @@ function PracticeTabs({
         </DialogTrigger>
         <DialogContent className="max-w-sm bg-[#0a0a0b] border-white/10 p-0 overflow-hidden shadow-2xl rounded-2xl">
           <DialogHeader className="p-6 border-b border-white/5 bg-white/[0.01]">
-            <div className="flex items-center gap-2 mb-1">
-              <Sparkles className="w-4 h-4 text-indigo-400" />
-              <DialogTitle className="text-lg font-bold tracking-tight text-white uppercase italic">Practice Config</DialogTitle>
-            </div>
-            <p className="text-[11px] text-muted-foreground/40 font-medium">Fine-tune the AI lecturer's question generation</p>
+            <DialogTitle className="text-lg font-bold tracking-tight text-white uppercase">Practice Config</DialogTitle>
+            <p className="text-[11px] text-muted-foreground/40 font-medium mt-1">Fine-tune the AI lecturer's question generation</p>
           </DialogHeader>
           
           <div className="p-6 space-y-6">
-            {/* Question Count */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Question Count</Label>
@@ -361,17 +372,16 @@ function PracticeTabs({
               </div>
             </div>
 
-            {/* Difficulty */}
             <div className="space-y-3">
               <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Difficulty Level</Label>
               <Select 
                 value={config.difficulty} 
                 onValueChange={(val: Difficulty) => onConfigChange({ ...config, difficulty: val })}
               >
-                <SelectTrigger className="w-full bg-white/[0.02] border-white/10 rounded-xl h-11 text-[13px] font-medium focus:ring-indigo-500">
+                <SelectTrigger className="w-full bg-white/[0.02] border-white/10 rounded-xl h-11 text-[13px] font-medium focus:ring-indigo-500 shadow-sm transition-all hover:border-white/20">
                   <SelectValue placeholder="Select difficulty" />
                 </SelectTrigger>
-                <SelectContent className="bg-[#0f0f12] border-white/10 rounded-xl">
+                <SelectContent className="bg-[#0f0f12] border-white/10 rounded-xl shadow-2xl">
                   <SelectItem value="Easy" className="text-[13px] font-medium focus:bg-indigo-500/20 focus:text-indigo-400">Easy</SelectItem>
                   <SelectItem value="Medium" className="text-[13px] font-medium focus:bg-indigo-500/20 focus:text-indigo-400">Medium</SelectItem>
                   <SelectItem value="Hard" className="text-[13px] font-medium focus:bg-indigo-500/20 focus:text-indigo-400">Hard</SelectItem>
@@ -390,8 +400,7 @@ function PracticeTabs({
           <div className="p-4 bg-white/[0.01] border-t border-white/5">
             <Button 
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-11 text-[12px] font-bold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none"
-              onClick={() => {
-              }}
+              onClick={() => setIsOpen(false)}
             >
               Apply Settings
             </Button>
@@ -551,4 +560,3 @@ function SavedSessionsBrowser({ courseId, onSelectSession }: { courseId?: string
     </div>
   );
 }
-
