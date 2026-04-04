@@ -77,6 +77,12 @@ export function AnnotationOverlay({
 
   if (!isOpen || !selection) return null;
 
+  // Calculate positioning
+  const overlayHeight = 350; // Estimated dynamic height
+  const flip = selection.y < overlayHeight + 40;
+  const x = Math.min(selection.x - 10, window.innerWidth - 330);
+  const y = flip ? selection.y + 12 : selection.y - overlayHeight - 12;
+
   return (
     <div
       ref={overlayRef}
@@ -85,9 +91,9 @@ export function AnnotationOverlay({
         "bg-neutral-900/80 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl shadow-black/80 ring-1 ring-white/5"
       )}
       style={{
-        left: `calc(10px + ${Math.min(selection.x, window.innerWidth - 330)}px)`,
-        top: `calc(${selection.y}px + 12px)`,
-        maxHeight: '400px',
+        left: `${Math.max(16, x)}px`,
+        top: `${y}px`,
+        maxHeight: `${overlayHeight}px`,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column'

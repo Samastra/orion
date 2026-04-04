@@ -10,7 +10,7 @@ interface SelectionTooltipProps {
 
 export function SelectionTooltip({ onAction }: SelectionTooltipProps) {
   const [visible, setVisible] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [position, setPosition] = useState({ x: 0, y: 0, flip: false });
   const [selectedText, setSelectedText] = useState('');
   const tooltipRef = useRef<HTMLDivElement>(null);
 
@@ -24,10 +24,26 @@ export function SelectionTooltip({ onAction }: SelectionTooltipProps) {
         const range = selection?.getRangeAt(0);
         if (range) {
           const rect = range.getBoundingClientRect();
-          setPosition({
-            x: rect.left + rect.width / 2,
-            y: rect.top - 8,
-          });
+          const padding = 16;
+          const tooltipWidth = 260; // Estimated width
+          const tooltipHeight = 48; // Estimated height
+          
+          // Calculate horizontal center
+          let x = rect.left + rect.width / 2;
+          
+          // Clamp X to viewport
+          const halfWidth = tooltipWidth / 2;
+          if (x - halfWidth < padding) {
+            x = padding + halfWidth;
+          } else if (x + halfWidth > window.innerWidth - padding) {
+            x = window.innerWidth - padding - halfWidth;
+          }
+
+          // Vertical flip ONLY if truly at the absolute top edge
+          const flip = rect.top < 32; 
+          const y = flip ? rect.bottom + 8 : rect.top - 8;
+
+          setPosition({ x, y, flip });
           setSelectedText(text);
           setVisible(true);
         }
@@ -67,10 +83,17 @@ export function SelectionTooltip({ onAction }: SelectionTooltipProps) {
       style={{
         left: `${position.x}px`,
         top: `${position.y}px`,
-        transform: 'translate(-50%, -100%)',
+        transform: `translate(-50%, ${position.flip ? '0' : '-100%'})`,
       }}
     >
-      <div className="bg-neutral-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/80 p-1.5 flex items-center gap-1 ring-1 ring-white/5">
+      {/* Arrow (Top) */}
+      {position.flip && (
+        <div className="flex justify-center -mb-1.5 relative z-10">
+          <div className="w-3 h-3 bg-neutral-900 border-l border-t border-white/10 rotate-45" />
+        </div>
+      )}
+
+      <div className="bg-neutral-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/80 p-1.5 flex items-center gap-1 ring-1 ring-white/5 whitespace-nowrap">
         <Button
           onClick={() => handleAction('explain')}
           variant="ghost"
@@ -82,25 +105,14 @@ export function SelectionTooltip({ onAction }: SelectionTooltipProps) {
         </Button>
         <div className="w-px h-5 bg-white/10" />
         <Button
-          onClick={() => handleAction('summarize')}
+          onClick={() => handleAction('simplify')}
           variant="ghost"
           size="sm"
           className="h-8 rounded-xl gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 px-3 transition-all"
         >
-          <BookOpen className="w-3.5 h-3.5" />
-          Summarize
+          <Sparkles className="w-3.5 h-3.5" />
+          Simplify
         </Button>
-        <div className="w-px h-5 bg-white/10" />
-        <Button
-          onClick={() => handleAction('key_concepts')}
-          variant="ghost"
-          size="sm"
-          className="h-8 rounded-xl gap-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-400 hover:bg-amber-500/10 hover:text-amber-300 px-3 transition-all"
-        >
-          <Lightbulb className="w-3.5 h-3.5" />
-          Key Ideas
-        </Button>
-        
         <div className="w-px h-5 bg-white/10" />
         <Button
           onClick={() => handleAction('manual')}
@@ -112,10 +124,13 @@ export function SelectionTooltip({ onAction }: SelectionTooltipProps) {
           Annotate
         </Button>
       </div>
-      {/* Arrow */}
-      <div className="flex justify-center">
-        <div className="w-3 h-3 bg-neutral-900 border-r border-b border-white/10 rotate-45 -mt-1.5" />
-      </div>
+
+      {/* Arrow (Bottom) */}
+      {!position.flip && (
+        <div className="flex justify-center -mt-1.5">
+          <div className="w-3 h-3 bg-neutral-900 border-r border-b border-white/10 rotate-45" />
+        </div>
+      )}
     </div>
   );
 }

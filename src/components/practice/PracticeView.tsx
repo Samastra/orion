@@ -35,10 +35,11 @@ interface PracticeViewProps {
   courseId?: string;
   topicFocus?: string;
   initialType?: PracticeType;
+  autoGenerate?: boolean;
   onQuestionsGenerated?: (questions: any[], type: PracticeType) => void;
 }
 
-export function PracticeView({ context, courseId, topicFocus, initialType, onQuestionsGenerated }: PracticeViewProps) {
+export function PracticeView({ context, courseId, topicFocus, initialType, autoGenerate, onQuestionsGenerated }: PracticeViewProps) {
   const [practiceType, setPracticeType] = useState<PracticeType>(initialType || 'mcq');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,13 +53,20 @@ export function PracticeView({ context, courseId, topicFocus, initialType, onQue
     difficulty: 'Medium'
   });
 
+  // Auto-generate if requested
+  useEffect(() => {
+    if (autoGenerate && context && !mcqQuestions && !flashcards && !isGenerating) {
+      generate();
+    }
+  }, [autoGenerate, context]);
+
   // Modal open state
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   const hasActiveSession = practiceType === 'mcq' ? mcqQuestions !== null : flashcards !== null;
 
   const generate = async () => {
-    if (!context) return;
+    if (!context || isGenerating) return;
     setIsGenerating(true);
     setError(null);
 

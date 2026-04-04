@@ -287,7 +287,6 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
               context={extractedText} 
               fileName={file?.name}
               courseId={selectedCourse?.id}
-              selectionAction={overlaySelection ? { action: overlayAction, text: overlaySelection.text } : null}
             />
           </ResizablePanel>
         </ResizablePanelGroup>
