@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ListChecks, Layers, ArrowRight, Loader2, AlertCircle, BookOpen, Calendar, ChevronRight as ChevronRightIcon, Settings2, Sparkles } from 'lucide-react';
+import { ListChecks, Layers, ArrowRight, Loader2, AlertCircle, BookOpen, Calendar, ChevronRight as ChevronRightIcon, Settings2, Sparkles, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MCQSession } from './MCQSession';
@@ -28,21 +28,24 @@ type Difficulty = 'Easy' | 'Medium' | 'Hard' | 'Exam-style';
 interface PracticeConfig {
   count: number;
   difficulty: Difficulty;
+  technicalDepth: number; // 1-10
 }
 
 interface PracticeViewProps {
   context: string | string[] | null;
   courseId?: string;
+  noteId?: string;
   topicFocus?: string;
   initialType?: PracticeType;
   autoGenerate?: boolean;
   onQuestionsGenerated?: (questions: any[], type: PracticeType) => void;
 }
 
-export function PracticeView({ context, courseId, topicFocus, initialType, autoGenerate, onQuestionsGenerated }: PracticeViewProps) {
+export function PracticeView({ context, courseId, noteId, topicFocus, initialType, autoGenerate, onQuestionsGenerated }: PracticeViewProps) {
   const [practiceType, setPracticeType] = useState<PracticeType>(initialType || 'mcq');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isIndexing, setIsIndexing] = useState(false);
   const [mcqQuestions, setMcqQuestions] = useState<MCQQuestion[] | null>(null);
   const [flashcards, setFlashcards] = useState<FlashcardData[] | null>(null);
   const [suggestedTitle, setSuggestedTitle] = useState<string>('');
@@ -50,7 +53,8 @@ export function PracticeView({ context, courseId, topicFocus, initialType, autoG
   // Practice configuration state
   const [config, setConfig] = useState<PracticeConfig>({
     count: 10,
-    difficulty: 'Medium'
+    difficulty: 'Medium',
+    technicalDepth: 5
   });
 
   // Auto-generate if requested
@@ -65,12 +69,37 @@ export function PracticeView({ context, courseId, topicFocus, initialType, autoG
 
   const hasActiveSession = practiceType === 'mcq' ? mcqQuestions !== null : flashcards !== null;
 
-  const generate = async () => {
+  const generate = async (forceReindex: boolean = false) => {
     if (!context || isGenerating) return;
     setIsGenerating(true);
     setError(null);
 
     try {
+      const docText = Array.isArray(context) ? context.join('\n\n') : context;
+      
+      // 1. If document is large, ensure it's indexed first
+      if (docText.length > 12000) {
+        setIsIndexing(true);
+        try {
+          const indexRes = await fetch('/api/practice/index', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              content: docText,
+              courseId,
+              noteId,
+              force: forceReindex 
+            }),
+          });
+          const indexData = await indexRes.json();
+          if (!indexRes.ok) console.warn("Background indexing failed:", indexData.error);
+        } catch (e) {
+          console.warn("Indexing failed, falling back to truncation.", e);
+        } finally {
+          setIsIndexing(false);
+        }
+      }
+
       const res = await fetch('/api/practice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,7 +108,10 @@ export function PracticeView({ context, courseId, topicFocus, initialType, autoG
           type: practiceType, 
           topicFocus,
           count: config.count,
-          difficulty: config.difficulty
+          difficulty: config.difficulty,
+          technicalDepth: config.technicalDepth,
+          courseId,
+          noteId 
         }),
       });
 
@@ -131,6 +163,7 @@ export function PracticeView({ context, courseId, topicFocus, initialType, autoG
           onConfigChange={setConfig}
           isOpen={isConfigOpen}
           setIsOpen={setIsConfigOpen}
+          onGenerate={generate}
         />
         <div className="flex-1 min-h-0">
           <MCQSession 
@@ -155,6 +188,7 @@ export function PracticeView({ context, courseId, topicFocus, initialType, autoG
           onConfigChange={setConfig}
           isOpen={isConfigOpen}
           setIsOpen={setIsConfigOpen}
+          onGenerate={generate}
         />
         <div className="flex-1 min-h-0">
           <FlashcardSession 
@@ -179,6 +213,7 @@ export function PracticeView({ context, courseId, topicFocus, initialType, autoG
           onConfigChange={setConfig}
           isOpen={isConfigOpen}
           setIsOpen={setIsConfigOpen}
+          onGenerate={generate}
         />
         <div className="flex-1 min-h-0">
           <SavedSessionsBrowser 
@@ -224,18 +259,28 @@ export function PracticeView({ context, courseId, topicFocus, initialType, autoG
         onConfigChange={setConfig}
         isOpen={isConfigOpen}
         setIsOpen={setIsConfigOpen}
+        onGenerate={generate}
       />
 
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="text-center space-y-5 max-w-sm">
           {isGenerating ? (
             <>
-              <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center mx-auto">
+              <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center mx-auto relative">
                 <Loader2 className="w-7 h-7 text-indigo-400 animate-spin" />
+                {isIndexing && (
+                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-500 rounded-full border-2 border-[#0D0D12] flex items-center justify-center">
+                    <Sparkles className="w-2.5 h-2.5 text-white animate-pulse" />
+                  </div>
+                )}
               </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-foreground/80">Generating {practiceType === 'mcq' ? 'questions' : 'flashcards'}...</h3>
-                <p className="text-[12px] text-muted-foreground/40">Analyzing your document content</p>
+              <div className="space-y-1 text-center">
+                <h3 className="text-sm font-semibold text-foreground/80">
+                  {isIndexing ? 'Indexing Entire Document...' : `Generating ${practiceType === 'mcq' ? 'Questions' : 'Flashcards'}...`}
+                </h3>
+                <p className="text-[12px] text-muted-foreground/40 italic">
+                  {isIndexing ? 'Google AI is scanning 30,000+ characters' : 'Analyzing your high-yield facts'}
+                </p>
               </div>
             </>
           ) : error ? (
@@ -247,7 +292,7 @@ export function PracticeView({ context, courseId, topicFocus, initialType, autoG
                 <h3 className="text-sm font-semibold text-foreground/80">Generation failed</h3>
                 <p className="text-[12px] text-muted-foreground/40 leading-relaxed px-4">{error}</p>
               </div>
-              <Button onClick={generate} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 px-5 text-[12px]">
+              <Button onClick={() => generate()} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 px-5 text-[12px]">
                 Try Again
               </Button>
             </>
@@ -272,7 +317,7 @@ export function PracticeView({ context, courseId, topicFocus, initialType, autoG
               </div>
               {context && (
                 <Button 
-                  onClick={generate} 
+                  onClick={() => generate()} 
                   className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 px-6 h-11 text-[13px] font-bold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none"
                 >
                   Generate {config.count}
@@ -294,7 +339,8 @@ function PracticeTabs({
   config,
   onConfigChange,
   isOpen,
-  setIsOpen
+  setIsOpen,
+  onGenerate
 }: { 
   type: PracticeType; 
   setType: (t: PracticeType) => void; 
@@ -303,6 +349,7 @@ function PracticeTabs({
   onConfigChange: (c: PracticeConfig) => void;
   isOpen: boolean;
   setIsOpen: (o: boolean) => void;
+  onGenerate: (force?: boolean) => void;
 }) {
   return (
     <div className="shrink-0 px-3 py-2 border-b border-white/[0.06] flex items-center justify-between bg-black/20 backdrop-blur-sm">
@@ -362,8 +409,8 @@ function PracticeTabs({
                 <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Question Count</Label>
                 <span className="text-[10px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">{config.count} items</span>
               </div>
-              <div className="grid grid-cols-5 gap-1.5">
-                {[5, 10, 15, 20, 25].map((num) => (
+              <div className="grid grid-cols-4 gap-1.5">
+                {[10, 20, 40, 100].map((num) => (
                   <button
                     key={num}
                     onClick={() => onConfigChange({ ...config, count: num })}
@@ -401,6 +448,55 @@ function PracticeTabs({
                 {config.difficulty === 'Medium' && "A balanced mix of concepts and scenarios."}
                 {config.difficulty === 'Hard' && "Complex clinical reasoning and integrated facts."}
                 {config.difficulty === 'Exam-style' && "Board-exam complexity (NAPLEX/FPGEC style)."}
+              </p>
+            </div>
+
+            {/* NEW: Technical Depth Slider (The Intelligence Upgrade) */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Technical Depth</Label>
+                  <Sparkles className="w-3 h-3 text-indigo-400 animate-pulse" />
+                </div>
+                <span className="text-[10px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20 shadow-sm">Level {config.technicalDepth}</span>
+              </div>
+              
+              <div className="px-1 group/slider">
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="10" 
+                  step="1"
+                  value={config.technicalDepth}
+                  onChange={(e) => onConfigChange({ ...config, technicalDepth: parseInt(e.target.value) })}
+                  className="w-full h-1.5 bg-white/5 rounded-lg appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 transition-all"
+                />
+                <div className="flex justify-between mt-2">
+                  <span className="text-[8px] font-bold text-muted-foreground/30 uppercase tracking-tighter">Conceptual</span>
+                  <span className="text-[8px] font-bold text-muted-foreground/30 uppercase tracking-tighter">Advanced Data</span>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground/30 italic leading-relaxed">
+                {config.technicalDepth <= 3 && "Prioritizes high-level definitions and core fundamental principles."}
+                {config.technicalDepth > 3 && config.technicalDepth <= 7 && "Standard balance of mechanisms, pharmaceutical properties, and specific facts."}
+                {config.technicalDepth > 7 && "Strictly targets formulas, clinical ranges, pKa, and precise data points."}
+              </p>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <Button
+                variant="outline"
+                className="w-full bg-white/[0.02] border-white/10 rounded-xl h-11 text-[11px] font-bold text-muted-foreground/60 hover:text-indigo-400 hover:border-indigo-500/30 hover:bg-indigo-500/5 flex items-center justify-center gap-2 group/refresh transition-all duration-300"
+                onClick={() => {
+                  setIsOpen(false);
+                  onGenerate(true); // forceReindex = true
+                }}
+              >
+                <RefreshCw className="w-3.5 h-3.5 group-hover/refresh:rotate-180 transition-transform duration-700" />
+                Refresh AI Brains
+              </Button>
+              <p className="text-[9px] text-muted-foreground/20 px-1 text-center font-medium italic">
+                Scanning your notes for intricate clinical & pharmaceutical details...
               </p>
             </div>
           </div>

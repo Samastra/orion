@@ -2,6 +2,9 @@
 
 import React, { useState } from 'react';
 import { RotateCcw, Trash2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 export interface FlashcardData {
   id: string | number;
@@ -70,9 +73,11 @@ export function FlashCard({ card, cardNumber, total, onDelete }: FlashCardProps)
             }}
           >
             <span className="text-[10px] font-semibold text-muted-foreground/30 uppercase tracking-widest mb-4">Question</span>
-            <p className="text-[16px] text-white/90 leading-relaxed font-medium">
-              {card.front}
-            </p>
+            <div className="text-[16px] text-white/90 leading-relaxed font-bold prose prose-invert prose-sm max-w-none [&_p]:m-0">
+              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                {card.front}
+              </ReactMarkdown>
+            </div>
             <div className="mt-8 flex items-center gap-1.5 text-muted-foreground/25">
               <RotateCcw className="w-3.5 h-3.5" />
               <span className="text-[10px] font-medium uppercase tracking-tight">Tap to reveal</span>
@@ -89,9 +94,11 @@ export function FlashCard({ card, cardNumber, total, onDelete }: FlashCardProps)
             }}
           >
             <span className="text-[10px] font-semibold text-indigo-400/50 uppercase tracking-widest mb-4">Answer</span>
-            <p className="text-[15px] text-white/80 leading-relaxed">
-              {card.back}
-            </p>
+            <div className="text-[15px] text-white/80 leading-relaxed prose prose-invert prose-sm max-w-none [&_p]:m-0">
+              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                {card.back}
+              </ReactMarkdown>
+            </div>
             <div className="mt-8 flex items-center gap-1.5 text-indigo-400/20">
               <RotateCcw className="w-3.5 h-3.5" />
               <span className="text-[10px] font-medium uppercase tracking-tight">Tap to flip back</span>

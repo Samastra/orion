@@ -264,6 +264,7 @@ export default function PracticePage() {
             <PracticeView 
               context={courseContext} 
               courseId={selectedCourse.id}
+              noteId={selectedNote?.id}
               topicFocus={topicFocus || undefined}
               onQuestionsGenerated={handleQuestionsGenerated}
               initialType={initialPracticeType as any}

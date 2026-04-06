@@ -2,6 +2,9 @@
 
 import React, { useState } from 'react';
 import { CheckCircle2, XCircle, Circle } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
 
 export interface MCQQuestion {
   id: number;
@@ -45,9 +48,11 @@ export function MCQCard({
         <span className="text-[10px] font-semibold text-indigo-400/60 uppercase tracking-widest">
           Question {questionNumber}
         </span>
-        <p className="text-[15px] text-foreground/90 leading-relaxed font-medium">
-          {question.question}
-        </p>
+        <div className="text-[15px] text-foreground/90 leading-relaxed font-bold prose prose-invert prose-sm max-w-none [&_p]:m-0">
+          <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+            {question.question}
+          </ReactMarkdown>
+        </div>
       </div>
 
       {/* Options */}
@@ -90,11 +95,13 @@ export function MCQCard({
                   OPTION_LABELS[i]
                 )}
               </span>
-              <span className={`text-[13px] leading-relaxed ${
-                revealed && isCorrect ? 'text-emerald-300 font-medium' : 'text-foreground/80'
+              <div className={`text-[13px] leading-relaxed prose prose-invert prose-sm max-w-none [&_p]:m-0 ${
+                revealed && isCorrect ? 'text-emerald-300 font-bold' : 'text-foreground/80 font-medium'
               }`}>
-                {option}
-              </span>
+                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                  {option}
+                </ReactMarkdown>
+              </div>
             </button>
           );
         })}
@@ -104,9 +111,11 @@ export function MCQCard({
       {revealed && (
         <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-xl px-4 py-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <span className="text-[10px] font-semibold text-indigo-400/60 uppercase tracking-widest">Explanation</span>
-          <p className="text-[13px] text-foreground/70 leading-relaxed mt-1">
-            {question.explanation}
-          </p>
+          <div className="text-[13px] text-foreground/70 leading-relaxed mt-1 prose prose-invert prose-sm max-w-none [&_p]:m-0">
+            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+              {question.explanation}
+            </ReactMarkdown>
+          </div>
         </div>
       )}
     </div>

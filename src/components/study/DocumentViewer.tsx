@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { PDFRenderer } from './PDFRenderer';
 import { SelectionTooltip } from './SelectionTooltip';
 import { StudyStatusDisplay } from './StudyStatusDisplay';
@@ -44,6 +44,8 @@ export function DocumentViewer({
 
   const isDirectContent = typeof docContent === 'string' && docContent.length > 0 && (!file || !file.arrayBuffer);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
   // Empty State: No file and no content
   if (!file && !isDirectContent && !isLoading) {
     return <StudyEmptyState onUpload={onUpload} />;
@@ -51,7 +53,7 @@ export function DocumentViewer({
 
   return (
     <div className="h-full flex flex-col bg-background relative">
-      <SelectionTooltip onAction={handleSelectionAction} />
+      <SelectionTooltip onAction={handleSelectionAction} containerRef={containerRef} />
 
       {/* Loading & Errors */}
       <StudyStatusDisplay 
@@ -63,7 +65,10 @@ export function DocumentViewer({
 
       {/* Main Content Area */}
       {!error && (
-        <>
+        <div 
+          className="flex-1 min-h-0 relative" 
+          data-selection-area="true"
+        >
           {isDirectContent ? (
             <StudyGuideView 
               content={docContent} 
@@ -83,7 +88,7 @@ export function DocumentViewer({
               </div>
             </div>
           ) : null}
-        </>
+        </div>
       )}
     </div>
   );

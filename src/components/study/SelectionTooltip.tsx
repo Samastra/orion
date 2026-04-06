@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 
 interface SelectionTooltipProps {
   onAction: (action: string, text: string) => void;
+  containerRef?: React.RefObject<HTMLElement | null>;
 }
 
-export function SelectionTooltip({ onAction }: SelectionTooltipProps) {
+export function SelectionTooltip({ onAction, containerRef }: SelectionTooltipProps) {
   const [visible, setVisible] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0, flip: false });
   const [selectedText, setSelectedText] = useState('');
@@ -20,7 +21,17 @@ export function SelectionTooltip({ onAction }: SelectionTooltipProps) {
       const selection = window.getSelection();
       const text = selection?.toString().trim();
       
-      if (text && text.length > 3) {
+      if (text && text.length > 3 && selection) {
+        // Check if selection is within a valid study area
+        const anchor = selection.anchorNode;
+        const parent = anchor?.nodeType === 3 ? anchor.parentElement : anchor;
+        const isValidArea = (parent as HTMLElement)?.closest?.('[data-selection-area="true"]');
+        
+        if (!isValidArea) {
+          setVisible(false);
+          return;
+        }
+
         const range = selection?.getRangeAt(0);
         if (range) {
           const rect = range.getBoundingClientRect();

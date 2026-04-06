@@ -57,11 +57,11 @@ export function AnnotationRenderer({ markdown, annotations, onDeleteAnnotation }
       const flexiblePattern = textToMatch
         .split('')
         .map(c => {
-          if (/\s/.test(c)) return `[\\s\\*\\_\\~\\\\\\n\\(\\)\\[\\]\\:\\-\\'\\"]*`; 
+          if (/\s/.test(c)) return `[\\s\\*\\_\\~\\\\\\n]*`; 
           const escaped = c.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
-          return `[\\*\\_\\~\\\\\\n\\(\\)\\[\\]\\:\\-\\'\\"]*${escaped}`;
+          return `[\\*\\_\\~\\\\\\n]*${escaped}`;
         })
-        .join('') + `[\\*\\_\\~\\\\\\n\\(\\)\\[\\]\\:\\-\\'\\"]*`;
+        .join('') + `[\\*\\_\\~\\\\\\n]*`;
       
       const regex = new RegExp(flexiblePattern, 'gi');
       let m;
@@ -104,28 +104,32 @@ export function AnnotationRenderer({ markdown, annotations, onDeleteAnnotation }
     return resultText;
   }, [markdown, annotations]);
 
-  // 2. STATEFUL STITCHER: Shared state across nodes
-  const GlobalState: RenderState = { activeId: null };
-
-  const renderWithHighlights = useCallback((children: React.ReactNode): React.ReactNode => {
+  /**
+   * REFACTORED: renderWithHighlights
+   * Now tracks 'isNested' to prevent double-pill stacking.
+   */
+  const renderWithHighlights = useCallback((
+    children: React.ReactNode, 
+    state = { activeId: null as string | null },
+    isNested = false
+  ): React.ReactNode => {
     return React.Children.map(children, (child) => {
       if (typeof child === 'string') {
         const parts = child.split(/(:::ghost:[^:]*:::|:::endghost:::)/g);
-        const result: React.ReactNode[] = [];
 
         return parts.map((part, i) => {
           if (part.startsWith(':::ghost:')) {
-            GlobalState.activeId = part.replace(':::ghost:', '').replace(':::', '');
+            state.activeId = part.replace(':::ghost:', '').replace(':::', '');
             return null;
           } else if (part === ':::endghost:::') {
-            GlobalState.activeId = null;
+            state.activeId = null;
             return null;
           } else if (part) {
-            if (GlobalState.activeId) {
-              const anno = annotations.find(a => a.id === GlobalState.activeId);
+            if (state.activeId && !isNested) {
+              const anno = annotations.find(a => a.id === state.activeId);
               return (
                 <HighlightFragment 
-                  key={`fragment-${GlobalState.activeId}-${i}`}
+                  key={`fragment-${state.activeId}-${i}`}
                   annotation={anno} 
                   onDelete={onDeleteAnnotation}
                 >
@@ -140,20 +144,18 @@ export function AnnotationRenderer({ markdown, annotations, onDeleteAnnotation }
         });
       }
       
-      // If we hit an element (strong, em, etc.) and we are currently "inside" an annotation,
-      // we need to wrap that entire element in our highlight pill.
       const processedChild = React.isValidElement(child) && (child.props as any).children
         ? React.cloneElement(child, {
             ...(child.props as any),
-            children: renderWithHighlights((child.props as any).children)
+            children: renderWithHighlights((child.props as any).children, state, true) // Pass isNested=true
           } as any)
         : child;
 
-      if (GlobalState.activeId) {
-        const anno = annotations.find(a => a.id === GlobalState.activeId);
+      if (state.activeId && !isNested) {
+        const anno = annotations.find(a => a.id === state.activeId);
         return (
           <HighlightFragment 
-            key={`nested-${GlobalState.activeId}`}
+            key={`nested-${state.activeId}`}
             annotation={anno} 
             onDelete={onDeleteAnnotation}
           >
