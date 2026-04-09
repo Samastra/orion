@@ -115,14 +115,14 @@ export function MCQSession({ questions, onReset, courseId, suggestedTitle }: MCQ
   if (allDone && !isReviewing) {
     const percentage = Math.round((score / questions.length) * 100);
     return (
-      <div className="h-full overflow-y-auto p-6 bg-background scrollbar-none">
+      <div className="h-full overflow-y-auto p-4 lg:p-6 bg-background scrollbar-none" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
         <div className="min-h-full flex items-center justify-center py-10">
-          <div className="text-center space-y-6 w-full max-w-lg animate-in fade-in zoom-in duration-500">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center mx-auto">
-              <Trophy className="w-8 h-8 text-indigo-400" />
+          <div className="text-center space-y-5 lg:space-y-6 w-full max-w-lg animate-in fade-in zoom-in duration-500">
+            <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center mx-auto">
+              <Trophy className="w-7 h-7 lg:w-8 lg:h-8 text-indigo-400" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-2xl font-bold text-foreground">Session Complete!</h2>
+              <h2 className="text-xl lg:text-2xl font-bold text-foreground">Session Complete!</h2>
               <p className="text-muted-foreground/60 text-sm">
                 You scored <span className="text-foreground font-bold">{score}/{questions.length}</span> ({percentage}%)
               </p>
@@ -143,12 +143,12 @@ export function MCQSession({ questions, onReset, courseId, suggestedTitle }: MCQ
             </p>
 
             {/* Results grid */}
-            <div className="flex flex-wrap gap-1.5 justify-center">
+            <div className="flex flex-wrap gap-1.5 justify-center max-h-[120px] overflow-y-auto scrollbar-none">
               {results.map((r: boolean | null, i: number) => (
                 <button
                   key={i}
                   onClick={() => { setCurrentIndex(i); setIsReviewing(true); }}
-                  className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-bold cursor-pointer transition-all hover:scale-110 active:scale-95 ${
+                  className={`w-8 h-8 lg:w-8 lg:h-8 rounded-lg flex items-center justify-center text-[11px] font-bold cursor-pointer transition-all active:scale-90 ${
                     r ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/15 text-rose-400 border border-rose-500/20'
                   }`}
                 >
@@ -190,12 +190,12 @@ export function MCQSession({ questions, onReset, courseId, suggestedTitle }: MCQ
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-3">
-                <Button onClick={() => setIsReviewing(true)} variant="outline" className="border-white/5 bg-white/5 hover:bg-white/10 text-foreground rounded-xl gap-2 h-12 font-bold transition-all hover:translate-y-[-1px] active:translate-y-[0px]">
+              <div className="grid grid-cols-2 gap-2 lg:gap-3">
+                <Button onClick={() => setIsReviewing(true)} variant="outline" className="border-white/5 bg-white/5 hover:bg-white/10 text-foreground rounded-xl gap-2 h-11 lg:h-12 font-bold transition-all active:scale-[0.98]">
                   <BookOpen className="w-4 h-4" />
-                  Review Answers
+                  Review
                 </Button>
-                <Button onClick={onReset} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 h-12 font-bold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none">
+                <Button onClick={onReset} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 h-11 lg:h-12 font-bold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all active:scale-[0.98]">
                   <RotateCcw className="w-4 h-4" />
                   New Set
                 </Button>
@@ -247,12 +247,12 @@ export function MCQSession({ questions, onReset, courseId, suggestedTitle }: MCQ
         )}
 
         {/* Question dots */}
-        <div className="flex gap-1 mt-2 justify-center pb-2">
+        <div className="flex gap-1 mt-2 justify-center pb-2 overflow-x-auto scrollbar-none max-w-full px-2">
           {questions.map((_, i) => (
             <button
               key={i}
               onClick={() => goTo(i)}
-              className={`w-6 h-1.5 rounded-full transition-all cursor-pointer ${
+              className={`min-w-[20px] lg:w-6 h-1.5 rounded-full transition-all cursor-pointer shrink-0 ${
                 i === currentIndex
                   ? 'bg-indigo-500'
                   : results[i] === true
@@ -278,12 +278,12 @@ export function MCQSession({ questions, onReset, courseId, suggestedTitle }: MCQ
       </div>
 
       {/* Navigation */}
-      <div className="shrink-0 px-5 pb-4 flex items-center justify-between">
+      <div className="shrink-0 px-4 lg:px-5 pb-4 flex items-center justify-between" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
         <Button
           variant="ghost"
           onClick={() => goTo(currentIndex - 1)}
           disabled={currentIndex === 0}
-          className="text-muted-foreground/50 hover:text-foreground gap-1.5 text-[12px]"
+          className="text-muted-foreground/50 hover:text-foreground gap-1.5 text-[12px] h-10 lg:h-9 px-3"
         >
           <ChevronLeft className="w-4 h-4" /> Previous
         </Button>
@@ -291,7 +291,7 @@ export function MCQSession({ questions, onReset, courseId, suggestedTitle }: MCQ
           variant="ghost"
           onClick={() => goTo(currentIndex + 1)}
           disabled={currentIndex === questions.length - 1}
-          className="text-muted-foreground/50 hover:text-foreground gap-1.5 text-[12px]"
+          className="text-muted-foreground/50 hover:text-foreground gap-1.5 text-[12px] h-10 lg:h-9 px-3"
         >
           Next <ChevronRight className="w-4 h-4" />
         </Button>

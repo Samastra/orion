@@ -54,14 +54,14 @@ export function FlashcardSession({ cards, onReset, courseId, suggestedTitle }: F
 
   if (showFinish) {
     return (
-      <div className="h-full overflow-y-auto p-6 bg-background scrollbar-none">
+      <div className="h-full overflow-y-auto p-4 lg:p-6 bg-background scrollbar-none" style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}>
         <div className="min-h-full flex items-center justify-center py-10">
-          <div className="text-center space-y-6 w-full max-w-sm animate-in fade-in zoom-in duration-500">
-            <div className="w-16 h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center mx-auto">
-              <Trophy className="w-8 h-8 text-indigo-400" />
+          <div className="text-center space-y-5 lg:space-y-6 w-full max-w-sm animate-in fade-in zoom-in duration-500">
+            <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center mx-auto">
+              <Trophy className="w-7 h-7 lg:w-8 lg:h-8 text-indigo-400" />
             </div>
             <div className="space-y-1">
-              <h2 className="text-xl font-bold text-foreground">Deck Complete!</h2>
+              <h2 className="text-xl lg:text-xl font-bold text-foreground">Deck Complete!</h2>
               <p className="text-muted-foreground/60 text-sm">
                 You've reviewed all <span className="text-foreground font-bold">{cards.length}</span> cards in this set.
               </p>
@@ -99,11 +99,11 @@ export function FlashcardSession({ cards, onReset, courseId, suggestedTitle }: F
                 </div>
               )}
 
-              <Button onClick={() => { setShowFinish(false); setCurrentIndex(0); }} variant="outline" className="border-white/5 bg-white/5 hover:bg-white/10 text-foreground rounded-xl gap-2 h-12 font-bold transition-all hover:translate-y-[-1px] active:translate-y-[0px]">
+              <Button onClick={() => { setShowFinish(false); setCurrentIndex(0); }} variant="outline" className="border-white/5 bg-white/5 hover:bg-white/10 text-foreground rounded-xl gap-2 h-11 lg:h-12 font-bold transition-all active:scale-[0.98]">
                 <RotateCcw className="w-4 h-4" />
                 Review Again
               </Button>
-              <Button onClick={onReset} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 h-12 font-bold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none">
+              <Button onClick={onReset} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 h-11 lg:h-12 font-bold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all active:scale-[0.98]">
                 <Sparkles className="w-4 h-4" />
                 Generate New Set
               </Button>
@@ -117,13 +117,13 @@ export function FlashcardSession({ cards, onReset, courseId, suggestedTitle }: F
   return (
     <div className="h-full flex flex-col">
       {/* Progress dots */}
-      <div className="shrink-0 px-5 pt-4 pb-2">
-        <div className="flex gap-1 justify-center">
+      <div className="shrink-0 px-4 lg:px-5 pt-4 pb-2">
+        <div className="flex gap-1 justify-center overflow-x-auto scrollbar-none max-w-full">
           {cards.map((_, i) => (
             <button
               key={i}
               onClick={() => goTo(i)}
-              className={`w-6 h-1.5 rounded-full transition-all cursor-pointer ${
+              className={`min-w-[20px] lg:w-6 h-1.5 rounded-full transition-all cursor-pointer shrink-0 ${
                 i === currentIndex ? 'bg-indigo-500' : 'bg-white/[0.06]'
               }`}
             />
@@ -132,7 +132,7 @@ export function FlashcardSession({ cards, onReset, courseId, suggestedTitle }: F
       </div>
 
       {/* Current card */}
-      <div className="flex-1 flex items-center justify-center px-5 py-4">
+      <div className="flex-1 flex items-center justify-center px-4 lg:px-5 py-4">
         <FlashCard
           key={currentIndex}
           card={cards[currentIndex]}
@@ -142,12 +142,12 @@ export function FlashcardSession({ cards, onReset, courseId, suggestedTitle }: F
       </div>
 
       {/* Navigation */}
-      <div className="shrink-0 px-5 pb-4 flex items-center justify-between">
+      <div className="shrink-0 px-4 lg:px-5 pb-4 flex items-center justify-between" style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 16px)' }}>
         <Button
           variant="ghost"
           onClick={() => goTo(currentIndex - 1)}
           disabled={currentIndex === 0}
-          className="text-muted-foreground/50 hover:text-foreground gap-1.5 text-[12px]"
+          className="text-muted-foreground/50 hover:text-foreground gap-1.5 text-[12px] h-10 lg:h-9 px-3"
         >
           <ChevronLeft className="w-4 h-4" /> Previous
         </Button>
@@ -155,7 +155,7 @@ export function FlashcardSession({ cards, onReset, courseId, suggestedTitle }: F
         <Button
           variant="ghost"
           onClick={onReset}
-          className="text-muted-foreground/30 hover:text-foreground gap-1.5 text-[11px]"
+          className="text-muted-foreground/30 hover:text-foreground gap-1.5 text-[11px] h-10 lg:h-9"
         >
           <RotateCcw className="w-3.5 h-3.5" /> New Set
         </Button>
@@ -163,7 +163,7 @@ export function FlashcardSession({ cards, onReset, courseId, suggestedTitle }: F
         <Button
           variant="ghost"
           onClick={() => goTo(currentIndex + 1)}
-          className="text-muted-foreground/50 hover:text-foreground gap-1.5 text-[12px]"
+          className="text-muted-foreground/50 hover:text-foreground gap-1.5 text-[12px] h-10 lg:h-9 px-3"
         >
           {currentIndex === cards.length - 1 ? 'Finish' : 'Next'} <ChevronRight className="w-4 h-4" />
         </Button>

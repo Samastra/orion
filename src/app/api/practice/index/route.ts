@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { indexDocument, checkIfIndexed } from "@/lib/google/embeddings";
+import { createClient } from '@/lib/supabase/server';
 
 export async function POST(req: NextRequest) {
   try {
@@ -9,12 +10,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Either noteId or courseId is required." }, { status: 400 });
     }
 
-    // 1. RELAXED CACHING: Check if we already have index for this note or course
+    // Get the authenticated user's ID for RLS
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    const userId = user?.id;
+
+    // Check cache (skip re-indexing unless forced)
     if (!force) {
       const status = await checkIfIndexed(courseId, noteId);
       
       if (status.indexed) {
-        console.log(`📡 [Smart Cache] Skipping indexing for ${noteId ? "Note" : "Course"}: Already present in DB.`);
+        console.log(`📡 [Cache] Already indexed for ${noteId ? "Note" : "Course"}. Skipping.`);
         return NextResponse.json({ 
           success: true, 
           message: "Already indexed.", 
@@ -23,12 +29,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Perform indexing
     if (!content) {
       return NextResponse.json({ error: "Content is required for indexing." }, { status: 400 });
     }
 
-    const result = await indexDocument(content, noteId, courseId);
+    const result = await indexDocument(content, noteId, courseId, userId);
 
     return NextResponse.json({ 
       success: true, 
@@ -44,7 +49,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Optional: GET to check status
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const noteId = searchParams.get('noteId');
@@ -52,7 +56,5 @@ export async function GET(req: NextRequest) {
   if (!noteId) return NextResponse.json({ error: "noteId required" }, { status: 400 });
 
   const status = await checkIfIndexed(undefined, noteId);
-  return NextResponse.json({ 
-    isIndexed: status.indexed
-  });
+  return NextResponse.json({ isIndexed: status.indexed });
 }

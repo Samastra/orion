@@ -61,7 +61,7 @@ export function MCQCard({
           const isCorrect = i === question.correctIndex;
           const isSelected = i === selected;
           
-          let style = 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] cursor-pointer';
+          let style = 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] cursor-pointer active:scale-[0.98] transition-all';
           
           if (revealed) {
             if (isCorrect) {
@@ -78,9 +78,9 @@ export function MCQCard({
               key={i}
               onClick={() => handleSelect(i)}
               disabled={revealed}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${style}`}
+              className={`w-full flex items-center gap-3 px-4 py-3.5 lg:py-3 rounded-xl border transition-all text-left ${style}`}
             >
-              <span className={`w-7 h-7 rounded-lg flex items-center justify-center text-[12px] font-bold shrink-0 ${
+              <span className={`w-8 h-8 lg:w-7 lg:h-7 rounded-lg flex items-center justify-center text-[12px] font-bold shrink-0 ${
                 revealed && isCorrect
                   ? 'bg-emerald-500/20 text-emerald-400'
                   : revealed && isSelected && !isCorrect

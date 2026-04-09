@@ -70,41 +70,48 @@ export function PracticeView({ context, courseId, noteId, topicFocus, initialTyp
   const hasActiveSession = practiceType === 'mcq' ? mcqQuestions !== null : flashcards !== null;
 
   const generate = async (forceReindex: boolean = false) => {
-    if (!context || isGenerating) return;
+    if (isGenerating) return;
+    // Need at least noteId or courseId to retrieve from DB
+    if (!noteId && !courseId && !context) return;
     setIsGenerating(true);
     setError(null);
 
     try {
-      const docText = Array.isArray(context) ? context.join('\n\n') : context;
-      
-      // 1. If document is large, ensure it's indexed first
-      if (docText.length > 12000) {
+      // 1. Ensure document is indexed before generating
+      if (noteId || courseId) {
         setIsIndexing(true);
         try {
-          const indexRes = await fetch('/api/practice/index', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              content: docText,
-              courseId,
-              noteId,
-              force: forceReindex 
-            }),
-          });
-          const indexData = await indexRes.json();
-          if (!indexRes.ok) console.warn("Background indexing failed:", indexData.error);
+          // If we have raw context (from file upload), send it for indexing
+          const docText = context
+            ? (Array.isArray(context) ? context.join('\n\n') : context)
+            : null;
+
+          if (docText) {
+            const indexRes = await fetch('/api/practice/index', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                content: docText,
+                courseId,
+                noteId,
+                force: forceReindex 
+              }),
+            });
+            const indexData = await indexRes.json();
+            if (!indexRes.ok) console.warn("Indexing failed:", indexData.error);
+          }
         } catch (e) {
-          console.warn("Indexing failed, falling back to truncation.", e);
+          console.warn("Indexing step failed:", e);
         } finally {
           setIsIndexing(false);
         }
       }
 
+      // 2. Generate questions — server retrieves chunks from DB
       const res = await fetch('/api/practice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          context, 
           type: practiceType, 
           topicFocus,
           count: config.count,
@@ -353,10 +360,10 @@ function PracticeTabs({
 }) {
   return (
     <div className="shrink-0 px-3 py-2 border-b border-white/[0.06] flex items-center justify-between bg-black/20 backdrop-blur-sm">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 lg:gap-2 overflow-x-auto scrollbar-none">
         <button
           onClick={() => setType('mcq')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3 py-2 lg:py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
             type === 'mcq'
               ? 'bg-indigo-600 text-white border border-indigo-700/50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]'
               : 'text-muted-foreground/40 hover:text-muted-foreground/60 hover:bg-white/[0.03] border border-transparent'
@@ -367,7 +374,7 @@ function PracticeTabs({
         </button>
         <button
           onClick={() => setType('flashcard')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3 py-2 lg:py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
             type === 'flashcard'
               ? 'bg-indigo-600 text-white border border-indigo-700/50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]'
               : 'text-muted-foreground/40 hover:text-muted-foreground/60 hover:bg-white/[0.03] border border-transparent'
@@ -379,7 +386,7 @@ function PracticeTabs({
         <div className="w-px h-4 bg-white/5 mx-1" />
         <button
           onClick={() => setType('saved')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3 py-2 lg:py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
             type === 'saved'
               ? 'bg-indigo-600 text-white border border-indigo-700/50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]'
               : 'text-muted-foreground/40 hover:text-muted-foreground/60 hover:bg-white/[0.03] border border-transparent'
@@ -397,7 +404,7 @@ function PracticeTabs({
             <Settings2 className="w-4 h-4 transition-transform group-hover:rotate-90 duration-500" />
           </button>
         </DialogTrigger>
-        <DialogContent className="max-w-sm bg-[#0a0a0b] border-white/10 p-0 overflow-hidden shadow-2xl rounded-2xl">
+        <DialogContent className="max-w-sm w-[calc(100vw-2rem)] bg-[#0a0a0b] border-white/10 p-0 overflow-hidden shadow-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader className="p-6 border-b border-white/5 bg-white/[0.01]">
             <DialogTitle className="text-lg font-bold tracking-tight text-white uppercase">Practice Config</DialogTitle>
             <p className="text-[11px] text-muted-foreground/40 font-medium mt-1">Fine-tune the AI lecturer's question generation</p>

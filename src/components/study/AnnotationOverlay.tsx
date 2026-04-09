@@ -14,8 +14,9 @@ interface AnnotationOverlayProps {
   selection: { x: number; y: number; text: string } | null;
   action: string | 'manual';
   onSave?: (highlightedText: string, content: string, type: 'ai' | 'manual') => void;
-  context?: string | string[] | null;
-  initialContent?: string | null; // For viewing existing annotations
+  noteId?: string;
+  courseId?: string;
+  initialContent?: string | null;
 }
 
 export function AnnotationOverlay({ 
@@ -24,7 +25,8 @@ export function AnnotationOverlay({
   selection, 
   action, 
   onSave, 
-  context,
+  noteId,
+  courseId,
   initialContent 
 }: AnnotationOverlayProps) {
   const [loading, setLoading] = useState(false);
@@ -55,7 +57,8 @@ export function AnnotationOverlay({
         body: JSON.stringify({ 
           action, 
           text: selection.text, 
-          context 
+          noteId,
+          courseId 
         }),
       });
 

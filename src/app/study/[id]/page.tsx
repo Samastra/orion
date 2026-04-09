@@ -165,9 +165,6 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
     } else if (error) toast.error("Failed to delete annotation");
   };
 
-  // Context string for the MobileAISheet
-  const contextString = Array.isArray(extractedText) ? extractedText.join('\n\n') : (extractedText || '');
-
   // Shared file input
   const fileInput = (
     <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.docx,.pptx" onChange={handleFileChange} />
@@ -182,7 +179,8 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
         selection={overlaySelection}
         action={overlayAction}
         onSave={handleSaveAnnotation}
-        context={extractedText}
+        noteId={selectedNote?.id}
+        courseId={selectedCourse?.id}
       />
       <StudySelectorModal open={isSelectorOpen} onSelect={handleStartStudy} />
     </>
@@ -273,7 +271,8 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
         <MobileAISheet
           open={showMobileAI}
           onClose={() => setShowMobileAI(false)}
-          context={contextString}
+          noteId={selectedNote?.id}
+          courseId={selectedCourse?.id}
           title="AI Tutor"
           subtitle={file ? `Studying: ${file.name}` : 'Study Session'}
           quickPrompts={['Summarize', 'Key concepts', 'Quiz me', 'Explain simply']}
@@ -375,7 +374,7 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
             <ChatInterface 
               ref={chatRef}
               sessionId={id} 
-              context={extractedText} 
+              noteId={selectedNote?.id}
               fileName={file?.name}
               courseId={selectedCourse?.id}
             />

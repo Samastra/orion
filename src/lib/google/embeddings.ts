@@ -1,248 +1,244 @@
+/**
+ * Embeddings Engine — Handles document indexing and vector search.
+ * 
+ * Uses Gemini embedding-001 for vector generation and Supabase pgvector
+ * for storage and cosine similarity search.
+ * 
+ * The AI grader has been replaced with a $0 heuristic (see rag/scoring.ts).
+ * Chunking uses semantic boundaries (see rag/chunker.ts).
+ */
+
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "@/lib/supabase/server";
+import { smartChunk } from "@/lib/rag/chunker";
+import { estimateComplexity } from "@/lib/rag/scoring";
 
-// --- CHUNKING STRATEGY ---
-// Split text into overlapping segments of ~2000 characters for pharmaceutical context
-// This ensures mechanisms of action (which are often long) aren't cut in half
-function chunkText(text: string, size: number = 2000, overlap: number = 400): string[] {
-  if (!text) return [];
-  const chunks: string[] = [];
-  let start = 0;
+// ─── Constants ──────────────────────────────────────────────────
 
-  while (start < text.length) {
-    const end = Math.min(start + size, text.length);
-    chunks.push(text.slice(start, end).trim());
-    
-    // If we're at the end, stop
-    if (end === text.length) break;
-    
-    start += size - overlap;
-  }
+const EMBEDDING_MODEL = "gemini-embedding-001";
+const EMBEDDING_DIMENSIONS = 768;
+const BATCH_SIZE = 20;
 
-  return chunks;
-}
+// ─── Retry Utility ──────────────────────────────────────────────
 
-/**
- * RETRY UTILITY WITH EXPONENTIAL BACKOFF
- * Handles transient network errors and 'fetch failed' by retrying.
- */
 async function withRetry<T>(fn: () => Promise<T>, retries: number = 3, delay: number = 1000): Promise<T> {
   try {
     return await fn();
   } catch (err) {
     if (retries <= 0) throw err;
-    console.warn(`⚠️ [AI Retry] Request failed, retrying in ${delay}ms... (${retries} attempts left)`);
+    console.warn(`⚠️ [Retry] Request failed, retrying in ${delay}ms... (${retries} left)`);
     await new Promise(resolve => setTimeout(resolve, delay));
     return withRetry(fn, retries - 1, delay * 2);
   }
 }
 
-/**
- * AI GRADER: Assigns a technical complexity score (1-10) to segments of text.
- * Used to power the 'Technical Depth' slider in the UI.
- */
-async function gradeComplexity(chunks: string[]): Promise<number[]> {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return chunks.map(() => 5);
-
-  const genAI = new GoogleGenerativeAI(apiKey);
-  // Using Flash-Lite for high-speed, low-cost grading
-  const model = genAI.getGenerativeModel({ model: "gemini-3.1-flash-lite-preview" });
-
-  const prompt = `You are a pharmaceutical sciences professor. Classify the technical complexity of these document chunks.
-  
-  SCORING SCALE (1-10):
-  1-3: Basic introductions, general definitions, or history.
-  4-6: Standard mechanisms, common classifications, and basic properties.
-  7-10: High technicality: specific chemical formulas, precise dosage ranges (e.g. 0.5mg/kg), intricate physicochemical attributes (lipophilicity, pKa, etc.), or complex clinical scenarios.
-  
-  CHUNKS TO GRADE:
-  ${chunks.map((c, i) => `[ID ${i}]: "${c.slice(0, 400)}..."`).join('\n\n')}
-  
-  CRITICAL: Respond ONLY with a JSON array of integers representing the scores for each ID in order. Example: [2, 8, 5]`;
-
-  try {
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-    const jsonMatch = text.match(/\[[\d,\s]*\]/);
-    if (jsonMatch) {
-      const scores = JSON.parse(jsonMatch[0]);
-      if (Array.isArray(scores) && scores.length === chunks.length) return scores;
-    }
-  } catch (e) {
-    console.warn("⚠️ [AI Grader] Complexity grading failed, defaulting to 5.", e);
-  }
-  return chunks.map(() => 5);
-}
+// ─── Index Document ─────────────────────────────────────────────
 
 /**
- * GENERATE AND STORE EMBEDDINGS
- * Takes a document (identified by noteId or courseId) and indexes it for search.
+ * Index a document for semantic search.
+ * Chunks the text, generates embeddings, scores complexity, and stores in Supabase.
  */
-export async function indexDocument(content: string, noteId?: string, courseId?: string) {
+export async function indexDocument(
+  content: string,
+  noteId?: string,
+  courseId?: string,
+  userId?: string
+) {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error("GEMINI_API_KEY is not set in environment.");
+  if (!apiKey) throw new Error("GEMINI_API_KEY is not set.");
 
   const supabase = await createClient();
   const genAI = new GoogleGenerativeAI(apiKey);
-  
-  // Back to gemini-embedding-001 as text-004 is not available in v1beta here
-  const model = genAI.getGenerativeModel({ 
-    model: "gemini-embedding-001"
-  });
+  const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL });
 
-  const chunks = chunkText(content);
-  console.log(`📡 [Gemini Indexer] Splitting document into ${chunks.length} chunks...`);
-  
-  // First, clear any existing chunks for this specific note to prevent duplicates
+  // Smart chunking (semantic boundaries)
+  const chunks = smartChunk(content);
+  console.log(`📡 [Indexer] Document split into ${chunks.length} semantic chunks.`);
+
+  // Clear existing chunks for this note
   if (noteId) {
-    console.log(`📡 [Gemini Indexer] Cleaning up old index for noteId: ${noteId}`);
     await supabase.from('document_sections').delete().eq('note_id', noteId);
   }
 
-  // Process chunks in larger batches for the Paid Tier
-  const BATCH_SIZE = 20;
   let totalChunks = 0;
 
   for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
     const end = Math.min(i + BATCH_SIZE, chunks.length);
-    console.log(`🚀 [Gemini Indexer] Rapid Indexing: chunks ${i + 1} to ${end}...`);
     const batch = chunks.slice(i, end);
-    
+
     try {
-      // 1. Generate embeddings for the batch
+      // 1. Generate embeddings
       const result = await withRetry(async () => {
         return await model.batchEmbedContents({
           requests: batch.map(text => ({
             content: { parts: [{ text }], role: 'user' },
             taskType: "RETRIEVAL_DOCUMENT" as any,
-            outputDimensionality: 768
+            outputDimensionality: EMBEDDING_DIMENSIONS
           }))
         });
       });
 
-      const embeddingsResults = result.embeddings.map(e => e.values);
+      const embeddings = result.embeddings.map(e => e.values);
 
-      // 2. AI Complexity Grading (NEW: Powers the Intelligence Upgrade)
-      console.log(`📡 [AI Grader] Evaluating technical depth of batch...`);
-      const complexityScores = await gradeComplexity(batch);
+      // 2. Score complexity with $0 heuristic
+      const complexityScores = batch.map(text => estimateComplexity(text));
 
-      // Prepare for Supabase
-      const toInsert = batch.map((text, idx) => ({
+      // 3. Prepare rows
+      const rows = batch.map((text, idx) => ({
         note_id: noteId,
         course_id: courseId,
+        user_id: userId,
         content: text,
-        embedding: embeddingsResults[idx],
-        metadata: { 
-          chunkIndex: i + idx, 
+        embedding: embeddings[idx],
+        metadata: {
+          chunkIndex: i + idx,
           totalChunks: chunks.length,
-          sourceLength: content.length,
-          technicalScore: complexityScores[idx] || 5
+          technicalScore: complexityScores[idx],
         }
       }));
 
-      // Upsert into Supabase
-      const { error } = await supabase
-        .from('document_sections')
-        .insert(toInsert);
-
+      const { error } = await supabase.from('document_sections').insert(rows);
       if (error) throw error;
       totalChunks += batch.length;
     } catch (err) {
-      console.error(`Error in chunk batch ${i}:`, err);
+      console.error(`❌ [Indexer] Batch ${i} failed:`, err);
       throw err;
     }
   }
 
+  console.log(`✅ [Indexer] Indexed ${totalChunks} chunks.`);
   return { success: true, chunksCount: totalChunks };
 }
 
+// ─── Search Content ─────────────────────────────────────────────
+
 /**
- * SEMANTIC RETRIEVAL
- * Finds the most relevant chunks with optional 'Technical Depth' biasing.
+ * Semantic search over indexed document chunks.
+ * Returns chunks ranked by similarity, with depth as a tiebreaker.
  */
-export async function searchContent(query: string, noteId?: string, courseId?: string, count: number = 8, targetDepth: number = 5) {
+export async function searchContent(
+  query: string,
+  noteId?: string,
+  courseId?: string,
+  count: number = 8,
+  targetDepth: number = 5
+) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ 
-    model: "gemini-embedding-001"
-  });
+  const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL });
 
-  // 1. Convert search query to a vector
+  // 1. Embed the query
   const result = await withRetry(async () => {
     return await model.embedContent({
       content: { parts: [{ text: query }], role: 'user' },
       taskType: "RETRIEVAL_QUERY" as any,
-      outputDimensionality: 768
+      outputDimensionality: EMBEDDING_DIMENSIONS
     } as any);
   });
 
   const queryEmbedding = result.embedding.values;
   const supabase = await createClient();
-  
-  // 2. Diverse Search (Course-wide)
+
+  // 2. Course-wide diverse search (when no specific note is targeted)
   if (!noteId && courseId) {
-    const { data: noteRecords } = await supabase.from('document_sections').select('note_id').eq('course_id', courseId);
-    const uniqueNoteIds = Array.from(new Set(noteRecords?.map(n => n.note_id).filter(id => !!id)));
-
-    if (uniqueNoteIds.length > 1) {
-      const results = await Promise.all(uniqueNoteIds.map(async (nId) => {
-        const { data } = await supabase.rpc('match_document_sections', {
-          query_embedding: queryEmbedding,
-          match_threshold: 0.05,
-          match_count: 5, // Fetch extra for depth filtering
-          p_course_id: courseId,
-          p_note_id: nId
-        });
-        return (data || []) as any[];
-      }));
-
-      // Apply Depth Filtering (Rank by proximity to targetDepth)
-      const allChunks = results.flat().map((c: any) => {
-        const score = c.metadata?.technicalScore || 5;
-        return { ...c, depthDiff: Math.abs(score - targetDepth) };
-      });
-      
-      // Sort by similarity first, then prune by depth if needed
-      return allChunks
-        .sort((a: any, b: any) => a.depthDiff - b.depthDiff)
-        .slice(0, count * 2); // Return a slightly larger set for AI to pick from
-    }
+    return await courseWideSearch(supabase, queryEmbedding, courseId, count, targetDepth);
   }
 
-  // 3. Precise Search (Specific Note)
-  console.log(`🔮 [Intelligence Search] Target Depth: ${targetDepth}/10`);
+  // 3. Standard search (specific note or general)
   const { data, error } = await supabase.rpc('match_document_sections', {
     query_embedding: queryEmbedding,
     match_threshold: 0.1,
-    match_count: count * 2, // Fetch double for filtering
+    match_count: count * 2, // Fetch extra for ranking
     p_course_id: courseId || null,
     p_note_id: noteId || null
   });
 
   if (error || !data) return null;
 
-  // Refine by Depth
-  const filtered = data
-    .map((c: any) => ({
-      ...c,
-      depthDiff: Math.abs((c.metadata?.technicalScore || 5) - targetDepth)
-    }))
-    .sort((a: any, b: any) => a.depthDiff - b.depthDiff)
-    .slice(0, count);
+  // Rank: similarity first, depth as tiebreaker
+  return rankChunks(data, targetDepth, count);
+}
 
-  return filtered;
+// ─── Helpers ────────────────────────────────────────────────────
+
+/**
+ * Rank chunks by combined similarity + depth score.
+ * Similarity is the primary factor; depth is a gentle tiebreaker.
+ */
+function rankChunks(chunks: any[], targetDepth: number, limit: number) {
+  const DEPTH_WEIGHT = 0.03; // Small — depth nudges but never overrides
+
+  return chunks
+    .map((c: any) => {
+      const similarity = c.similarity || 0;
+      const depthDiff = Math.abs((c.metadata?.technicalScore || 5) - targetDepth);
+      const combinedScore = similarity - (depthDiff * DEPTH_WEIGHT);
+      return { ...c, combinedScore };
+    })
+    .sort((a: any, b: any) => b.combinedScore - a.combinedScore)
+    .slice(0, limit);
 }
 
 /**
- * RELAXED CACHING: Checks if a course or note has ANY presence in the index.
- * Only re-indexes if 'force' is true (manual refresh).
+ * Search across all notes in a course, sampling from each note
+ * to ensure diversity in practice questions.
+ */
+async function courseWideSearch(
+  supabase: any,
+  queryEmbedding: number[],
+  courseId: string,
+  count: number,
+  targetDepth: number
+) {
+  const { data: noteRecords } = await supabase
+    .from('document_sections')
+    .select('note_id')
+    .eq('course_id', courseId);
+
+  const uniqueNoteIds = Array.from(
+    new Set((noteRecords || []).map((n: any) => n.note_id).filter((id: any) => !!id))
+  ) as string[];
+
+  if (uniqueNoteIds.length <= 1) {
+    // Single note — fall back to standard search
+    const { data } = await supabase.rpc('match_document_sections', {
+      query_embedding: queryEmbedding,
+      match_threshold: 0.05,
+      match_count: count * 2,
+      p_course_id: courseId,
+      p_note_id: uniqueNoteIds[0] || null
+    });
+    return rankChunks(data || [], targetDepth, count);
+  }
+
+  // Multi-note: sample from each note
+  const perNote = Math.max(3, Math.ceil(count / uniqueNoteIds.length) + 1);
+  const results = await Promise.all(
+    uniqueNoteIds.map(async (nId) => {
+      const { data } = await supabase.rpc('match_document_sections', {
+        query_embedding: queryEmbedding,
+        match_threshold: 0.05,
+        match_count: perNote,
+        p_course_id: courseId,
+        p_note_id: nId
+      });
+      return (data || []) as any[];
+    })
+  );
+
+  return rankChunks(results.flat(), targetDepth, count);
+}
+
+// ─── Cache Check ────────────────────────────────────────────────
+
+/**
+ * Check if a note or course is already indexed.
  */
 export async function checkIfIndexed(courseId?: string, noteId?: string) {
   const supabase = await createClient();
-  
+
   let query = supabase.from('document_sections').select('id').limit(1);
 
   if (noteId) {
@@ -254,11 +250,5 @@ export async function checkIfIndexed(courseId?: string, noteId?: string) {
   }
 
   const { data, error } = await query;
-
-  if (error || !data || data.length === 0) {
-    return { indexed: false };
-  }
-
-  // If ANY records exist for this ID, we consider it indexed
-  return { indexed: true, hasChanged: false };
+  return { indexed: !error && !!data && data.length > 0 };
 }

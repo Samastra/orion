@@ -19,7 +19,8 @@ interface Message {
 interface MobileAISheetProps {
   open: boolean;
   onClose: () => void;
-  context: string;
+  noteId?: string;
+  courseId?: string;
   title: string;
   subtitle?: string;
   quickPrompts?: string[];
@@ -173,7 +174,7 @@ function AISheetEmptyState({
 // ─── Main Component ─────────────────────────────────────────────
 
 export function MobileAISheet({
-  open, onClose, context, title, subtitle,
+  open, onClose, noteId, courseId, title, subtitle,
   quickPrompts = ['Summarize', 'Key concepts', 'Quiz me', 'Explain simply'],
   apiMode = 'study',
 }: MobileAISheetProps) {
@@ -204,7 +205,7 @@ export function MobileAISheet({
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updated, context, mode: apiMode }),
+        body: JSON.stringify({ messages: updated, noteId, courseId, mode: apiMode }),
         signal: controller.signal,
       });
       if (!res.ok) throw new Error('API error');

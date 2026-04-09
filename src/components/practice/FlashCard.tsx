@@ -29,7 +29,7 @@ export function FlashCard({ card, cardNumber, total, onDelete }: FlashCardProps)
   };
 
   return (
-    <div className="w-full max-w-lg mx-auto" style={{ perspective: '1000px' }}>
+    <div className="w-full max-w-lg mx-auto px-1" style={{ perspective: '1000px' }}>
       {/* Card header */}
       <div className="flex items-center justify-between mb-3 px-1">
         <span className="text-[10px] font-semibold text-indigo-400/60 uppercase tracking-widest">
@@ -57,7 +57,7 @@ export function FlashCard({ card, cardNumber, total, onDelete }: FlashCardProps)
         style={{ perspective: '1000px' }}
       >
         <div
-          className="relative w-full min-h-[320px] transition-all duration-500 ease-out"
+          className="relative w-full min-h-[260px] lg:min-h-[320px] transition-all duration-500 ease-out"
           style={{
             transformStyle: 'preserve-3d',
             transform: flipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
@@ -65,7 +65,7 @@ export function FlashCard({ card, cardNumber, total, onDelete }: FlashCardProps)
         >
           {/* Front */}
           <div
-            className="absolute inset-0 w-full h-full rounded-2xl border border-white/[0.08] bg-[#0A0A0B] p-8 flex flex-col items-center justify-center text-center shadow-2xl"
+            className="absolute inset-0 w-full h-full rounded-2xl border border-white/[0.08] bg-[#0A0A0B] p-6 lg:p-8 flex flex-col items-center justify-center text-center shadow-2xl"
             style={{ 
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',
@@ -73,7 +73,7 @@ export function FlashCard({ card, cardNumber, total, onDelete }: FlashCardProps)
             }}
           >
             <span className="text-[10px] font-semibold text-muted-foreground/30 uppercase tracking-widest mb-4">Question</span>
-            <div className="text-[16px] text-white/90 leading-relaxed font-bold prose prose-invert prose-sm max-w-none [&_p]:m-0">
+            <div className="text-[15px] lg:text-[16px] text-white/90 leading-relaxed font-bold prose prose-invert prose-sm max-w-none [&_p]:m-0">
               <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
                 {card.front}
               </ReactMarkdown>
@@ -86,7 +86,7 @@ export function FlashCard({ card, cardNumber, total, onDelete }: FlashCardProps)
 
           {/* Back */}
           <div
-            className="absolute inset-0 w-full h-full rounded-2xl border border-indigo-500/20 bg-[#0D0D12] p-8 flex flex-col items-center justify-center text-center shadow-2xl"
+            className="absolute inset-0 w-full h-full rounded-2xl border border-indigo-500/20 bg-[#0D0D12] p-6 lg:p-8 flex flex-col items-center justify-center text-center shadow-2xl"
             style={{ 
               backfaceVisibility: 'hidden',
               WebkitBackfaceVisibility: 'hidden',

@@ -18,7 +18,7 @@ interface Message {
 
 interface ChatInterfaceProps {
   sessionId?: string;
-  context?: string | string[] | null;
+  noteId?: string;
   fileName?: string;
   courseId?: string;
 }
@@ -30,7 +30,7 @@ function ts() {
 export const ChatInterface = React.forwardRef<
   { clearChat: () => void },
   ChatInterfaceProps
->(({ sessionId, context, fileName, courseId }, ref) => {
+>(({ sessionId, noteId, fileName, courseId }, ref) => {
   const { user } = useUser();
   const userName = user?.user_metadata?.nickname || user?.user_metadata?.full_name?.split(' ')[0];
   const [input, setInput] = useState('');
@@ -88,7 +88,7 @@ export const ChatInterface = React.forwardRef<
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: allMessages, context, mode: 'study' }),
+        body: JSON.stringify({ messages: allMessages, noteId, courseId, mode: 'study' }),
         signal: controller.signal,
       });
 
@@ -155,7 +155,8 @@ export const ChatInterface = React.forwardRef<
       {mode === 'practice' ? (
         <div className="flex-1 min-h-0 flex flex-col">
           <PracticeView 
-            context={context ?? null} 
+            context={null} 
+            noteId={noteId}
             courseId={courseId} 
             autoGenerate={shouldAutoPractice}
           />
