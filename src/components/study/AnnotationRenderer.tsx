@@ -8,10 +8,12 @@ import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import { Sparkles, Pencil, Trash2 } from 'lucide-react';
 import { 
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { useState, useRef } from 'react';
 
 interface Annotation {
   id: string;
@@ -180,11 +182,10 @@ export function AnnotationRenderer({ markdown, annotations, onDeleteAnnotation }
           h2: ({children, ...props}) => <h2 {...props}>{renderWithHighlights(children)}</h2>,
           h3: ({children, ...props}) => <h3 {...props}>{renderWithHighlights(children)}</h3>,
           h4: ({children, ...props}) => <h4 {...props}>{renderWithHighlights(children)}</h4>,
-          td: ({children}) => <td className="px-5 py-3.5 text-[14px] text-foreground/75 border-b border-white/[0.04] leading-relaxed">{renderWithHighlights(children)}</td>,
+          td: ({children}) => <td className="px-3 py-2.5 lg:px-5 lg:py-3.5 text-[14px] text-foreground/75 border-b border-white/[0.04] leading-relaxed">{renderWithHighlights(children)}</td>,
           blockquote: ({children}) => <blockquote>{renderWithHighlights(children)}</blockquote>,
-          // Shared formatting for other tags
-          table: ({children}) => <div className="my-8 rounded-xl border border-white/[0.08] overflow-hidden bg-white/[0.015]"><table className="w-full border-collapse m-0">{children}</table></div>,
-          th: ({children}) => <th className="px-5 py-3.5 text-left text-[11px] font-bold text-indigo-400 uppercase tracking-widest border-b border-white/[0.08]">{children}</th>,
+          table: ({children}) => <div className="my-4 lg:my-8 rounded-xl border border-white/[0.08] overflow-x-auto bg-white/[0.015] -mx-1 lg:mx-0"><table className="w-full border-collapse m-0 min-w-[400px]">{children}</table></div>,
+          th: ({children}) => <th className="px-3 py-2.5 lg:px-5 lg:py-3.5 text-left text-[11px] font-bold text-indigo-400 uppercase tracking-widest border-b border-white/[0.08] whitespace-nowrap">{children}</th>,
           hr: () => <hr className="my-12 border-0 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />,
         }}
       >
@@ -206,18 +207,44 @@ function HighlightFragment({
   children: React.ReactNode; 
   onDelete?: (id: string) => void;
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+  const closeTimeout = useRef<NodeJS.Timeout | null>(null);
+
   if (!annotation) return <>{children}</>;
 
+  const handleMouseEnter = () => {
+    if (!isDesktop) return;
+    if (closeTimeout.current) clearTimeout(closeTimeout.current);
+    setIsOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    if (!isDesktop) return;
+    closeTimeout.current = setTimeout(() => setIsOpen(false), 200);
+  };
+
   return (
-    <HoverCard openDelay={50} closeDelay={150}>
-      <HoverCardTrigger asChild>
-        <span className="ghost-highlight animate-in fade-in duration-300">
+    <Popover open={isOpen} onOpenChange={setIsOpen}>
+      <PopoverTrigger asChild>
+        <span 
+          className="ghost-highlight animate-in fade-in duration-300 cursor-pointer"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          onClick={(e) => {
+            if (!isDesktop) {
+              setIsOpen(!isOpen);
+            }
+          }}
+        >
           {children}
         </span>
-      </HoverCardTrigger>
-      <HoverCardContent 
+      </PopoverTrigger>
+      <PopoverContent 
         side="top" 
         align="center"
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className="w-80 bg-neutral-900/90 backdrop-blur-2xl border-white/10 p-0 rounded-2xl shadow-2xl overflow-hidden ring-1 ring-white/5 animate-in fade-in zoom-in-95 duration-200 z-[120]"
       >
         <div className="flex flex-col">
@@ -239,7 +266,7 @@ function HighlightFragment({
             </div>
           </div>
         </div>
-      </HoverCardContent>
-    </HoverCard>
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -73,14 +73,14 @@ export default function CoursesPage() {
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
-          <h1 className="text-4xl font-bold tracking-tight">My Courses</h1>
-          <p className="text-muted-foreground text-lg">Manage your academic subjects and study materials.</p>
+          <h1 className="text-2xl lg:text-4xl font-bold tracking-tight">My Courses</h1>
+          <p className="text-muted-foreground text-sm lg:text-lg">Manage your academic subjects and study materials.</p>
         </div>
         <Button 
           onClick={() => setIsModalOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-11 px-6 font-bold gap-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none"
+          className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-10 lg:h-11 px-5 lg:px-6 font-bold gap-2 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] text-[13px] lg:text-sm w-full lg:w-auto active:shadow-none"
         >
           <Plus className="w-4 h-4" />
           New Course
@@ -88,15 +88,15 @@ export default function CoursesPage() {
       </div>
 
       {/* Controls */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:max-w-md group">
+      <div className="flex items-center justify-between gap-3">
+        <div className="relative flex-1 group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-indigo-400 transition-colors" />
           <input
             type="text"
             placeholder="Search courses..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full h-12 bg-white/[0.03] border border-white/[0.08] rounded-2xl pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/30 transition-all"
+            className="w-full h-10 lg:h-12 bg-white/[0.03] border border-white/[0.08] rounded-xl lg:rounded-2xl pl-11 pr-4 text-[13px] lg:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/30 transition-all"
           />
         </div>
         
@@ -118,13 +118,13 @@ export default function CoursesPage() {
 
       {/* Course Grid/List */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
           {[1,2,3].map(i => (
             <div key={i} className="h-48 rounded-3xl bg-white/[0.02] border border-white/5 animate-pulse" />
           ))}
         </div>
       ) : filteredCourses.length > 0 ? (
-        <div className={viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" : "space-y-4"}>
+        <div className={viewMode === 'grid' ? "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6" : "space-y-3 lg:space-y-4"}>
           <AnimatePresence mode="popLayout">
             {filteredCourses.map((course: Course) => (
               <Link 
@@ -211,15 +211,22 @@ export default function CoursesPage() {
               className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
             />
             <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-[#0a0a0b] border border-white/10 rounded-3xl p-8 z-[60] shadow-2xl"
+              initial={{ opacity: 0, y: 100 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 100 }}
+              transition={{ type: 'spring', damping: 30, stiffness: 350, mass: 0.8 }}
+              className="fixed bottom-0 left-0 right-0 lg:bottom-auto lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2 w-full lg:max-w-lg bg-[#0c0c0d] lg:bg-[#0a0a0b] border-t lg:border border-white/10 rounded-t-[20px] lg:rounded-3xl p-6 lg:p-8 z-[60] shadow-2xl"
+              style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 24px)' }}
             >
-              <div className="space-y-6">
+              {/* Drag handle — mobile only */}
+              <div className="flex justify-center mb-4 lg:hidden">
+                <div className="w-9 h-[5px] rounded-full bg-white/[0.15]" />
+              </div>
+
+              <div className="space-y-5 lg:space-y-6">
                 <div>
-                  <h2 className="text-2xl font-bold">New Course</h2>
-                  <p className="text-muted-foreground text-sm">Organize your study materials by creating a new subject.</p>
+                  <h2 className="text-xl lg:text-2xl font-bold">New Course</h2>
+                  <p className="text-muted-foreground text-[13px] lg:text-sm mt-1">Organize your study materials by creating a new subject.</p>
                 </div>
 
                 <form onSubmit={handleCreateCourse} className="space-y-4">
@@ -253,7 +260,7 @@ export default function CoursesPage() {
                     />
                   </div>
 
-                  <div className="flex gap-3 pt-4">
+                  <div className="flex flex-col-reverse lg:flex-row gap-2 lg:gap-3 pt-2 lg:pt-4">
                     <Button 
                       type="button" 
                       onClick={() => setIsModalOpen(false)}

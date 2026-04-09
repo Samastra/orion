@@ -7,7 +7,8 @@ import {
   Plus,
   CircleDot,
   BookOpen,
-  Calendar
+  Calendar,
+  ChevronRight
 } from "lucide-react";
 import Link from 'next/link';
 import { createClient } from "@/lib/supabase/client";
@@ -24,6 +25,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getPerformanceData } from "@/lib/supabase/actions";
 import { PerformanceChart } from "./PerformanceChart";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 export function CourseTable() {
   const [courses, setCourses] = useState<any[]>([]);
@@ -31,6 +33,7 @@ export function CourseTable() {
   const [tab, setTab] = useState("outline");
   const [performanceData, setPerformanceData] = useState<any[]>([]);
   const [perfLoading, setPerfLoading] = useState(false);
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -58,6 +61,55 @@ export function CourseTable() {
     }
   };
 
+  // ─── Mobile: Card list ──────────────────────────────────────────
+  if (!isDesktop) {
+    return (
+      <div className="space-y-1.5">
+        {loading ? (
+          [1, 2, 3].map((i) => (
+            <div
+              key={i}
+              className="h-[56px] rounded-xl bg-white/[0.02] animate-pulse"
+            />
+          ))
+        ) : courses.length > 0 ? (
+          courses.map((course) => (
+            <Link
+              key={course.id}
+              href={`/dashboard/courses/${course.id}`}
+              className="block"
+            >
+              <div className="flex items-center gap-3 py-3 px-1 active:bg-white/[0.04] rounded-xl transition-colors">
+                {/* Subtle dot indicator */}
+                <div className="w-2 h-2 rounded-full bg-indigo-500/40 shrink-0" />
+
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[14px] font-semibold truncate">{course.name}</p>
+                  <p className="text-[11px] text-muted-foreground/40 font-medium truncate">
+                    {course.type}
+                  </p>
+                </div>
+
+                {/* Chevron */}
+                <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/15 shrink-0" />
+              </div>
+            </Link>
+          ))
+        ) : (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-12 h-12 bg-white/[0.03] rounded-full flex items-center justify-center mb-3">
+              <BookOpen className="w-6 h-6 text-muted-foreground/30" />
+            </div>
+            <p className="text-sm font-semibold">No courses yet</p>
+            <p className="text-[12px] text-muted-foreground/40 mt-1">Add your first course to get started</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ─── Desktop: Original table layout ────────────────────────────
   return (
     <div className="w-full space-y-6">
       <div className="flex items-center justify-between">
@@ -149,4 +201,3 @@ export function CourseTable() {
     </div>
   );
 }
-

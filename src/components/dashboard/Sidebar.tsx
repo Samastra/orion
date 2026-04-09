@@ -54,7 +54,7 @@ export function Sidebar() {
   ];
 
   return (
-    <div className="w-64 h-screen border-r border-white/5 bg-background flex flex-col fixed left-0 top-0">
+    <div className="w-64 h-screen border-r border-white/5 bg-background hidden lg:flex flex-col fixed left-0 top-0">
       <div className="p-6 flex items-center gap-3">
         <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center border border-indigo-500/20">
           <GraduationCap className="text-white w-5 h-5" />

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { 
   getCourse, 
   getNotes, 
@@ -43,6 +44,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { parseDocument } from '@/lib/document-parser';
 import { AddQuestionModal } from '@/components/practice/AddQuestionModal';
 import { FlashCard } from '@/components/practice/FlashCard';
+import { MobileNoteReader } from '@/components/mobile/MobileNoteReader';
 
 interface Course {
   id: string;
@@ -79,6 +81,7 @@ interface QuestionSession {
 export default function CourseDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
   const [course, setCourse] = useState<Course | null>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [sessions, setSessions] = useState<QuestionSession[]>([]);
@@ -205,7 +208,7 @@ export default function CourseDetailPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-20">
+    <div className={`space-y-6 lg:space-y-8 max-w-7xl mx-auto ${isDesktop ? 'pb-20' : 'pb-8'}`}>
       {/* Breadcrumb / Back */}
       <button
         onClick={() => router.push('/dashboard/courses')}
@@ -216,44 +219,47 @@ export default function CourseDetailPage() {
       </button>
 
       {/* Header Area */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-        <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 mt-1 bg-indigo-500/10 text-indigo-400 border border-white/5">
-            <BookOpen className="w-7 h-7" />
-          </div>
-          <div className="space-y-1">
-            <h1 className="text-5xl font-bold tracking-tight leading-none uppercase">{course.name}</h1>
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center gap-3">
+          {isDesktop && (
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 bg-indigo-500/10 text-indigo-400 border border-white/5">
+              <BookOpen className="w-7 h-7" />
+            </div>
+          )}
+          <div className="space-y-0.5">
+            <p className="text-[10px] lg:text-[11px] font-bold text-muted-foreground/40 uppercase tracking-widest">{course.type}</p>
+            <h1 className="text-2xl lg:text-5xl font-bold tracking-tight leading-none uppercase">{course.name}</h1>
           </div>
         </div>
 
         <Button
           size="lg"
           onClick={() => router.push(`/dashboard/practice?course=${id}`)}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-11 px-8 font-bold gap-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-2px] active:translate-y-[0px] mt-1 text-base"
+          className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-11 px-8 font-bold gap-3 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-2px] active:translate-y-[0px] mt-1 text-base w-full lg:w-auto"
         >
           <Target className="w-5 h-5" />
           Practice Subject
         </Button>
       </div>
 
-      <p className="text-muted-foreground text-lg max-w-3xl leading-relaxed">
+      <p className="text-muted-foreground text-sm lg:text-lg max-w-3xl leading-relaxed">
         {course.description || "Organize your study resources, review extracted notes, and master this subject through targeted practice."}
       </p>
 
-      <Tabs defaultValue="notes" className="space-y-8 pt-4">
-        <TabsList className="bg-zinc-950 border border-white/5 p-1 rounded-xl h-11 flex items-center w-fit gap-1 shadow-inner">
-          <TabsTrigger value="notes" className="rounded-lg px-8 data-[state=active]:bg-zinc-800 data-[state=active]:border-white/10 data-[state=active]:text-white text-zinc-400 font-bold h-full transition-all text-sm gap-2 border border-transparent shadow-sm">
+      <Tabs defaultValue="notes" className="space-y-6 lg:space-y-8">
+        <TabsList className="bg-zinc-950 border border-white/5 p-1 rounded-xl h-10 lg:h-11 flex items-center w-full lg:w-fit gap-1 shadow-inner">
+          <TabsTrigger value="notes" className="rounded-lg flex-1 lg:flex-initial px-4 lg:px-8 data-[state=active]:bg-zinc-800 data-[state=active]:border-white/10 data-[state=active]:text-white text-zinc-400 font-bold h-full transition-all text-[13px] lg:text-sm gap-2 border border-transparent shadow-sm">
             Study Notes
           </TabsTrigger>
-          <TabsTrigger value="questions" className="rounded-lg px-8 data-[state=active]:bg-zinc-800 data-[state=active]:border-white/10 data-[state=active]:text-white text-zinc-400 font-bold h-full transition-all text-sm gap-2 border border-transparent shadow-sm">
+          <TabsTrigger value="questions" className="rounded-lg flex-1 lg:flex-initial px-4 lg:px-8 data-[state=active]:bg-zinc-800 data-[state=active]:border-white/10 data-[state=active]:text-white text-zinc-400 font-bold h-full transition-all text-[13px] lg:text-sm gap-2 border border-transparent shadow-sm">
             Saved Questions
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="notes" className="space-y-6 outline-none">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">Personal Notes</h2>
-            <div className="flex items-center gap-3">
+        <TabsContent value="notes" className="space-y-5 lg:space-y-6 outline-none">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <h2 className="text-lg lg:text-2xl font-bold">Personal Notes</h2>
+            <div className="flex items-center gap-2 lg:gap-3">
               <input
                 type="file"
                 ref={fileInputRef}
@@ -264,14 +270,14 @@ export default function CourseDetailPage() {
               <Button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
-                className="bg-white/5 hover:bg-white/10 text-white rounded-xl h-11 px-5 font-bold gap-2 border border-white/10 text-sm"
+                className="bg-white/5 hover:bg-white/10 text-white rounded-xl h-9 lg:h-11 px-3 lg:px-5 font-bold gap-2 border border-white/10 text-[12px] lg:text-sm flex-1 lg:flex-initial"
               >
                 {isUploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                 Upload Doc
               </Button>
               <Button
                 onClick={() => setIsCreatingNote(true)}
-                className="bg-white/5 hover:bg-white/10 text-white rounded-xl h-11 px-5 font-bold gap-2 border border-white/10 text-sm"
+                className="bg-white/5 hover:bg-white/10 text-white rounded-xl h-9 lg:h-11 px-3 lg:px-5 font-bold gap-2 border border-white/10 text-[12px] lg:text-sm flex-1 lg:flex-initial"
               >
                 <Plus className="w-4 h-4" />
                 Add Note
@@ -279,7 +285,7 @@ export default function CourseDetailPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
             <AnimatePresence>
               {isCreatingNote && (
                 <motion.div
@@ -370,21 +376,21 @@ export default function CourseDetailPage() {
           </div>
         </TabsContent>
 
-        <TabsContent value="questions" className="space-y-6 outline-none">
-          <div className="flex items-center justify-between">
+        <TabsContent value="questions" className="space-y-5 lg:space-y-6 outline-none">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-col gap-1">
-              <h2 className="text-2xl font-bold flex items-center gap-2">
+              <h2 className="text-lg lg:text-2xl font-bold flex items-center gap-2">
                 {selectedSession ? (
                   <button onClick={() => setSelectedSession(null)} className="hover:text-indigo-400 transition-colors">Question Bank</button>
                 ) : "Question Bank"}
-                {selectedSession && <span className="text-muted-foreground/30 flex items-center gap-2 italic font-normal text-lg"><ChevronRight className="w-4 h-4" /> {selectedSession.title}</span>}
+                {selectedSession && <span className="text-muted-foreground/30 flex items-center gap-2 italic font-normal text-sm lg:text-lg"><ChevronRight className="w-4 h-4" /> {selectedSession.title}</span>}
               </h2>
             </div>
             {!selectedSession && <AddQuestionModal courseId={id as string} onSuccess={fetchData} />}
             {selectedSession && (
               <Button 
                 onClick={() => router.push(`/dashboard/practice?course=${id}`)}
-                className="bg-indigo-600/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-xl h-10 gap-2 font-bold px-5"
+                className="bg-indigo-600/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 rounded-xl h-9 lg:h-10 gap-2 font-bold px-4 lg:px-5 text-[13px] lg:text-sm"
               >
                 <Target className="w-4 h-4" />
                 Practice this Set
@@ -397,7 +403,7 @@ export default function CourseDetailPage() {
               <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
             </div>
           ) : selectedSession ? (
-             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
                 <AnimatePresence>
                   {sessionQuestions.map((q) => {
                     const isMcq = selectedSession?.type === 'mcq' || q.question_type === 'mcq';
@@ -493,7 +499,7 @@ export default function CourseDetailPage() {
                 </AnimatePresence>
              </div>
           ) : sessions.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
               {sessions.map((session) => (
                 <Card 
                   key={session.id} 
@@ -533,56 +539,65 @@ export default function CourseDetailPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Note Viewer Modal */}
-      <Dialog open={!!viewingNote} onOpenChange={(open) => !open && setViewingNote(null)}>
-        <DialogContent className="sm:max-w-4xl bg-[#0a0a0b] border-white/10 p-0 overflow-hidden shadow-2xl rounded-3xl">
-          <div className="flex flex-col h-[85vh]">
-            <DialogHeader className="px-8 py-5 border-b border-white/5 bg-white/[0.01] shrink-0">
-              <div className="flex items-center justify-between mx-auto w-full">
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 shrink-0">
-                    <FileText className="w-5 h-5 text-indigo-400" />
-                  </div>
-                  <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                       <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Study Note</span>
-                       <span className="text-[10px] font-semibold text-muted-foreground/30 uppercase tracking-widest">• Last updated {viewingNote ? new Date(viewingNote.created_at).toLocaleDateString() : ''}</span>
+      {/* Note Viewer — Mobile: full-screen reader with AI / Desktop: dialog */}
+      {!isDesktop && viewingNote ? (
+        <AnimatePresence>
+          <MobileNoteReader
+            note={viewingNote}
+            onClose={() => setViewingNote(null)}
+          />
+        </AnimatePresence>
+      ) : (
+        <Dialog open={!!viewingNote} onOpenChange={(open) => !open && setViewingNote(null)}>
+          <DialogContent className="sm:max-w-4xl bg-[#0a0a0b] border-white/10 p-0 overflow-hidden shadow-2xl rounded-3xl">
+            <div className="flex flex-col h-[85vh]">
+              <DialogHeader className="px-8 py-5 border-b border-white/5 bg-white/[0.01] shrink-0">
+                <div className="flex items-center justify-between mx-auto w-full">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 shrink-0">
+                      <FileText className="w-5 h-5 text-indigo-400" />
                     </div>
-                    <DialogTitle className="text-xl font-bold uppercase tracking-tight text-white line-clamp-1">
-                      {viewingNote?.title}
-                    </DialogTitle>
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                         <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Study Note</span>
+                         <span className="text-[10px] font-semibold text-muted-foreground/30 uppercase tracking-widest">• Last updated {viewingNote ? new Date(viewingNote.created_at).toLocaleDateString() : ''}</span>
+                      </div>
+                      <DialogTitle className="text-xl font-bold uppercase tracking-tight text-white line-clamp-1">
+                        {viewingNote?.title}
+                      </DialogTitle>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setViewingNote(null)}
+                    className="p-2 hover:bg-white/5 rounded-full transition-colors text-muted-foreground/40 hover:text-white"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </DialogHeader>
+              <div className="flex-1 overflow-y-auto px-8 py-10 custom-scrollbar">
+                <div className="max-w-3xl mx-auto">
+                  <div className="prose prose-invert max-w-none">
+                    <p className="text-foreground/90 leading-relaxed whitespace-pre-wrap text-[18px] font-medium selection:bg-indigo-500/30">
+                      {viewingNote?.content}
+                    </p>
                   </div>
                 </div>
-                <button 
-                  onClick={() => setViewingNote(null)}
-                  className="p-2 hover:bg-white/5 rounded-full transition-colors text-muted-foreground/40 hover:text-white"
-                >
-                  <X className="w-6 h-6" />
-                </button>
               </div>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto px-8 py-10 custom-scrollbar">
-              <div className="max-w-3xl mx-auto">
-                <div className="prose prose-invert max-w-none">
-                  <p className="text-foreground/90 leading-relaxed whitespace-pre-wrap text-[18px] font-medium selection:bg-indigo-500/30">
-                    {viewingNote?.content}
-                  </p>
+              <div className="px-8 py-4 border-t border-white/5 bg-white/[0.01] flex justify-end shrink-0">
+                <div className="mx-auto w-full flex justify-end">
+                  <Button 
+                    onClick={() => setViewingNote(null)}
+                    className="bg-white/5 hover:bg-white/10 text-white rounded-xl h-10 px-8 text-sm font-bold border border-white/10 transition-all"
+                  >
+                    Close Reader
+                  </Button>
                 </div>
               </div>
             </div>
-            <div className="px-8 py-4 border-t border-white/5 bg-white/[0.01] flex justify-end shrink-0">
-              <div className="mx-auto w-full flex justify-end">
-                <Button 
-                  onClick={() => setViewingNote(null)}
-                  className="bg-white/5 hover:bg-white/10 text-white rounded-xl h-10 px-8 text-sm font-bold border border-white/10 transition-all"
-                >
-                  Close Reader
-                </Button>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

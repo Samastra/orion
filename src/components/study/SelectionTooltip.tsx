@@ -73,9 +73,12 @@ export function SelectionTooltip({ onAction, containerRef }: SelectionTooltipPro
   useEffect(() => {
     document.addEventListener('mouseup', handleMouseUp);
     document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('touchend', handleMouseUp);
+    
     return () => {
       document.removeEventListener('mouseup', handleMouseUp);
       document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('touchend', handleMouseUp);
     };
   }, [handleMouseUp, handleMouseDown]);
 

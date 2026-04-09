@@ -174,3 +174,33 @@
 .gradient-bg {
   background: radial-gradient(circle at top center, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
 }
+
+/* ── Mobile Native Feel ────────────────────────────────── */
+
+/* Hide scrollbar for horizontal navs (iOS pill nav style) */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Prevent overscroll bounce on mobile sheet content */
+.overscroll-contain {
+  overscroll-behavior: contain;
+}
+
+/* iOS-style touch highlights */
+@media (hover: none) and (pointer: coarse) {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Safe area support for notched devices */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}

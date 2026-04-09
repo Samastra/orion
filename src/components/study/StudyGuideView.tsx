@@ -12,7 +12,7 @@ interface StudyGuideViewProps {
 
 export function StudyGuideView({ content, annotations, onDeleteAnnotation }: StudyGuideViewProps) {
   return (
-    <div className="h-full overflow-auto px-10 py-12 bg-white/[0.01] modern-scrollbar">
+    <div className="h-full overflow-auto px-4 py-6 lg:px-10 lg:py-12 bg-white/[0.01] modern-scrollbar">
       <div className="max-w-3xl mx-auto space-y-12">
         <div className="flex items-center gap-4 pb-8 border-b border-white/5">
           <div className="w-10 h-10 rounded-xl bg-indigo-600/10 flex items-center justify-center border border-indigo-500/20 text-indigo-400">
@@ -25,12 +25,27 @@ export function StudyGuideView({ content, annotations, onDeleteAnnotation }: Stu
         </div>
         
         <style>{`
+          /* ─── Desktop sizes ─── */
           .study-guide-article h1 { font-size: 28px !important; font-weight: 900 !important; color: rgba(255,255,255,0.95) !important; margin-bottom: 16px !important; line-height: 1.25 !important; }
           .study-guide-article h2 { font-size: 22px !important; font-weight: 700 !important; color: rgba(129,140,248,0.9) !important; margin-top: 48px !important; margin-bottom: 20px !important; padding-bottom: 12px !important; border-bottom: 1px solid rgba(255,255,255,0.06) !important; }
           .study-guide-article h3 { font-size: 18px !important; font-weight: 700 !important; color: rgba(255,255,255,0.88) !important; margin-top: 36px !important; line-height: 1.35 !important; }
           .study-guide-article p { font-size: 15px !important; line-height: 1.9 !important; color: rgba(255,255,255,0.72) !important; margin-bottom: 24px !important; }
           .study-guide-article li { font-size: 15px !important; line-height: 1.8 !important; color: rgba(255,255,255,0.72) !important; }
           .study-guide-article blockquote { border-left: 4px solid rgba(99, 102, 241, 0.5); background: rgba(99, 102, 241, 0.06); padding: 20px 24px; border-radius: 0 12px 12px 0; font-style: italic; margin: 32px 0; }
+
+          /* ─── Mobile sizes (< 1024px) ─── */
+          @media (max-width: 1023px) {
+            .study-guide-article h1 { font-size: 20px !important; margin-bottom: 10px !important; }
+            .study-guide-article h2 { font-size: 17px !important; margin-top: 28px !important; margin-bottom: 12px !important; padding-bottom: 8px !important; }
+            .study-guide-article h3 { font-size: 15px !important; margin-top: 22px !important; }
+            .study-guide-article p { font-size: 13px !important; line-height: 1.8 !important; margin-bottom: 14px !important; }
+            .study-guide-article li { font-size: 13px !important; line-height: 1.75 !important; }
+            .study-guide-article blockquote { padding: 12px 14px; margin: 16px 0; font-size: 12px; border-left-width: 3px; }
+            .study-guide-article td { font-size: 11px !important; padding: 6px 8px !important; }
+            .study-guide-article th { font-size: 10px !important; padding: 6px 8px !important; }
+            .study-guide-article .katex { font-size: 13px !important; }
+          }
+
           .ghost-highlight {
             display: inline !important;
             background-color: rgba(99, 102, 241, 0.12) !important;
