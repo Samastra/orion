@@ -128,6 +128,7 @@ export async function POST(req: NextRequest) {
     });
 
     if (!retrieved.text) {
+      console.warn(`🛑 [Practice API] Retrieval returned 0 content for Note:${noteId || 'all'} Course:${courseId || 'all'}. Either the table is empty or RLS is blocking the query.`);
       return NextResponse.json({ 
         error: 'No indexed content found. Please ensure the document has been indexed first.' 
       }, { status: 422 });

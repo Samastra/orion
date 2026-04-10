@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ListChecks, Layers, ArrowRight, Loader2, AlertCircle, BookOpen, Calendar, ChevronRight as ChevronRightIcon, Settings2, Sparkles, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -6,12 +7,13 @@ import { MCQSession } from './MCQSession';
 import { FlashcardSession } from './FlashcardSession';
 import type { MCQQuestion } from './MCQCard';
 import type { FlashcardData } from './FlashCard';
+import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { getQuestionSessions, getSessionQuestions } from '@/lib/supabase/actions';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -28,7 +30,6 @@ type Difficulty = 'Easy' | 'Medium' | 'Hard' | 'Exam-style';
 interface PracticeConfig {
   count: number;
   difficulty: Difficulty;
-  technicalDepth: number; // 1-10
 }
 
 interface PracticeViewProps {
@@ -42,6 +43,7 @@ interface PracticeViewProps {
 }
 
 export function PracticeView({ context, courseId, noteId, topicFocus, initialType, autoGenerate, onQuestionsGenerated }: PracticeViewProps) {
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
   const [practiceType, setPracticeType] = useState<PracticeType>(initialType || 'mcq');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,9 +54,8 @@ export function PracticeView({ context, courseId, noteId, topicFocus, initialTyp
   
   // Practice configuration state
   const [config, setConfig] = useState<PracticeConfig>({
-    count: 10,
-    difficulty: 'Medium',
-    technicalDepth: 5
+    count: 20,
+    difficulty: 'Medium'
   });
 
   // Auto-generate if requested
@@ -116,7 +117,6 @@ export function PracticeView({ context, courseId, noteId, topicFocus, initialTyp
           topicFocus,
           count: config.count,
           difficulty: config.difficulty,
-          technicalDepth: config.technicalDepth,
           courseId,
           noteId 
         }),
@@ -158,183 +158,221 @@ export function PracticeView({ context, courseId, noteId, topicFocus, initialTyp
     setError(null);
   };
 
-  // Active session view
-  if (mcqQuestions && practiceType === 'mcq') {
-    return (
-      <div className="h-full flex flex-col">
-        <PracticeTabs 
-          type={practiceType} 
-          setType={(t) => { setPracticeType(t); reset(); }} 
-          showSaved={() => setPracticeType('saved')}
-          config={config}
-          onConfigChange={setConfig}
-          isOpen={isConfigOpen}
-          setIsOpen={setIsConfigOpen}
-          onGenerate={generate}
-        />
-        <div className="flex-1 min-h-0">
-          <MCQSession 
-            questions={mcqQuestions} 
-            onReset={generate} 
-            courseId={courseId} 
-            suggestedTitle={suggestedTitle}
+  const renderCurrentView = () => {
+    // Active session view
+    if (mcqQuestions && practiceType === 'mcq') {
+      return (
+        <div className="h-full flex flex-col">
+          <PracticeTabs 
+            type={practiceType} 
+            setType={(t) => { setPracticeType(t); reset(); }} 
+            config={config}
+            onConfigChange={setConfig}
+            isOpen={isConfigOpen}
+            setIsOpen={setIsConfigOpen}
+            onGenerate={generate}
           />
+          <div className="flex-1 min-h-0">
+            <MCQSession 
+              questions={mcqQuestions} 
+              onReset={generate} 
+              courseId={courseId} 
+              suggestedTitle={suggestedTitle}
+            />
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (flashcards && practiceType === 'flashcard') {
-    return (
-      <div className="h-full flex flex-col">
-        <PracticeTabs 
-          type={practiceType} 
-          setType={(t) => { setPracticeType(t); reset(); }} 
-          showSaved={() => setPracticeType('saved')}
-          config={config}
-          onConfigChange={setConfig}
-          isOpen={isConfigOpen}
-          setIsOpen={setIsConfigOpen}
-          onGenerate={generate}
-        />
-        <div className="flex-1 min-h-0">
-          <FlashcardSession 
-            cards={flashcards} 
-            onReset={generate} 
-            courseId={courseId}
-            suggestedTitle={suggestedTitle}
+    if (flashcards && practiceType === 'flashcard') {
+      return (
+        <div className="h-full flex flex-col">
+          <PracticeTabs 
+            type={practiceType} 
+            setType={(t) => { setPracticeType(t); reset(); }} 
+            config={config}
+            onConfigChange={setConfig}
+            isOpen={isConfigOpen}
+            setIsOpen={setIsConfigOpen}
+            onGenerate={generate}
           />
+          <div className="flex-1 min-h-0">
+            <FlashcardSession 
+              cards={flashcards} 
+              onReset={generate} 
+              courseId={courseId}
+              suggestedTitle={suggestedTitle}
+            />
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  // Saved session view
-  if (practiceType === 'saved') {
-    return (
-      <div className="h-full flex flex-col">
-        <PracticeTabs 
-          type={practiceType} 
-          setType={(t) => { setPracticeType(t); reset(); }} 
-          config={config}
-          onConfigChange={setConfig}
-          isOpen={isConfigOpen}
-          setIsOpen={setIsConfigOpen}
-          onGenerate={generate}
-        />
-        <div className="flex-1 min-h-0">
-          <SavedSessionsBrowser 
-             courseId={courseId} 
-             onSelectSession={(session, questions) => {
-               setSuggestedTitle(session.title);
-               if (session.type === 'mcq') {
-                 const validMcqs = questions
-                   .map((q: any) => q.question_data)
-                   .filter((d: any) => d && d.options && Array.isArray(d.options) && d.correctIndex !== undefined);
-                 
-                 if (validMcqs.length > 0) {
-                   setMcqQuestions(validMcqs);
-                   setPracticeType('mcq');
+    // Saved session view
+    if (practiceType === 'saved') {
+      return (
+        <div className="h-full flex flex-col">
+          <PracticeTabs 
+            type={practiceType} 
+            setType={(t) => { setPracticeType(t); reset(); }} 
+            config={config}
+            onConfigChange={setConfig}
+            isOpen={isConfigOpen}
+            setIsOpen={setIsConfigOpen}
+            onGenerate={generate}
+          />
+          <div className="flex-1 min-h-0">
+            <SavedSessionsBrowser 
+               courseId={courseId} 
+               onSelectSession={(session, questions) => {
+                 setSuggestedTitle(session.title);
+                 if (session.type === 'mcq') {
+                   const validMcqs = questions
+                     .map((q: any) => q.question_data)
+                     .filter((d: any) => d && d.options && Array.isArray(d.options) && d.correctIndex !== undefined);
+                   
+                   if (validMcqs.length > 0) {
+                     setMcqQuestions(validMcqs);
+                     setPracticeType('mcq');
+                   }
+                 } else {
+                   const normalized = questions.map((q: any, i: number) => {
+                     const d = q.question_data || {};
+                     return {
+                       id: d.id || q.id || i + 1,
+                       front: d.front || d.question || '',
+                       back: d.back || d.answer || '',
+                       category: d.category || 'Study'
+                     };
+                   });
+                   setFlashcards(normalized);
+                   setPracticeType('flashcard');
                  }
-               } else {
-                 const normalized = questions.map((q: any, i: number) => {
-                   const d = q.question_data || {};
-                   return {
-                     id: d.id || q.id || i + 1,
-                     front: d.front || d.question || '',
-                     back: d.back || d.answer || '',
-                     category: d.category || 'Study'
-                   };
-                 });
-                 setFlashcards(normalized);
-                 setPracticeType('flashcard');
-               }
-             }}
-          />
+               }}
+            />
+          </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  // Default: empty state / generate prompt
-  return (
-    <div className="h-full flex flex-col">
-      <PracticeTabs 
-        type={practiceType} 
-        setType={setPracticeType} 
-        config={config}
-        onConfigChange={setConfig}
-        isOpen={isConfigOpen}
-        setIsOpen={setIsConfigOpen}
-        onGenerate={generate}
-      />
+    // Default: empty state / generate prompt
+    return (
+      <div className="h-full flex flex-col">
+        <PracticeTabs 
+          type={practiceType} 
+          setType={setPracticeType} 
+          config={config}
+          onConfigChange={setConfig}
+          isOpen={isConfigOpen}
+          setIsOpen={setIsConfigOpen}
+          onGenerate={generate}
+        />
 
-      <div className="flex-1 flex items-center justify-center p-6">
-        <div className="text-center space-y-5 max-w-sm">
-          {isGenerating ? (
-            <>
-              <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/15 flex items-center justify-center mx-auto relative">
-                <Loader2 className="w-7 h-7 text-indigo-400 animate-spin" />
-                {isIndexing && (
-                  <div className="absolute -top-1 -right-1 w-5 h-5 bg-indigo-500 rounded-full border-2 border-[#0D0D12] flex items-center justify-center">
-                    <Sparkles className="w-2.5 h-2.5 text-white animate-pulse" />
+        <div className="flex-1 flex items-center justify-center p-6 relative">
+          <div className="text-center space-y-8 max-w-sm relative z-10 w-full">
+            {isGenerating ? (
+              <div className="space-y-6">
+                <div className="w-20 h-20 rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center mx-auto relative shadow-2xl shadow-indigo-500/10 active:scale-95 transition-transform">
+                  <Loader2 className="w-10 h-10 text-indigo-400 animate-spin" />
+                  {isIndexing && (
+                    <div className="absolute -top-2 -right-2 w-7 h-7 bg-indigo-500 rounded-xl border-4 border-[#0D0D12] flex items-center justify-center shadow-lg">
+                      <Sparkles className="w-3.5 h-3.5 text-white animate-pulse" />
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-lg font-bold text-white tracking-tight">
+                    {isIndexing ? 'Indexing Knowledge' : `Generating ${practiceType === 'mcq' ? 'Questions' : 'Flashcards'}...`}
+                  </h3>
+                  <p className="text-[13px] text-muted-foreground/50 px-8">
+                    {isIndexing ? 'Digitizing sections for semantic retrieval...' : 'Analyzing your high-yield facts for precision testing.'}
+                  </p>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="space-y-6 p-8 rounded-3xl bg-rose-500/5 border border-rose-500/10 backdrop-blur-sm">
+                <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto">
+                  <AlertCircle className="w-8 h-8 text-rose-400" />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-md font-bold text-rose-400">Generation Interrupted</h3>
+                  <p className="text-[12px] text-muted-foreground/60 leading-relaxed">{error}</p>
+                </div>
+                    {error.includes('No indexed content') ? (
+                      <div className="flex flex-col gap-2 w-full">
+                        <Button 
+                          onClick={() => generate(true)} 
+                          className="w-full bg-indigo-600 hover:bg-indigo-400 text-white rounded-xl gap-2 h-10 text-[13px] font-bold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700 transition-all hover:translate-y-[-1px]"
+                        >
+                          <RefreshCw className="w-4 h-4" />
+                          Fix & Re-sync Knowledge
+                        </Button>
+                        <Button 
+                          onClick={() => generate()} 
+                          variant="ghost"
+                          className="w-full h-10 rounded-xl text-muted-foreground/60 text-[12px] hover:text-rose-400 transition-colors"
+                        >
+                          Just Try Again
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button 
+                        onClick={() => generate()} 
+                        className="w-full bg-rose-600 hover:bg-rose-500 text-white rounded-xl gap-2 h-10 text-[13px] font-bold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-rose-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none"
+                      >
+                        Try Again
+                      </Button>
+                    )}
+              </div>
+            ) : (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="w-20 h-20 rounded-3xl bg-white/[0.03] border border-white/[0.08] flex items-center justify-center mx-auto shadow-2xl">
+                  {practiceType === 'mcq'
+                    ? <ListChecks className="w-10 h-10 text-muted-foreground/20" />
+                    : <Layers className="w-10 h-10 text-muted-foreground/20" />
+                  }
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-[15px] font-bold text-white tracking-tight">
+                    {practiceType === 'mcq' ? 'MCQ Rush' : 'Flashcard Rush'}
+                  </h3>
+                  <p className="text-[13px] text-muted-foreground/40 leading-relaxed px-4">
+                    { (context || noteId || courseId)
+                      ? (practiceType === 'mcq' ? 'Rapid-fire precision testing.' : 'Master concepts in seconds.')
+                      : 'Awaiting your academic material to begin session.'
+                    }
+                  </p>
+                </div>
+                {(context || noteId || courseId) && (
+                  <div className="px-4">
+                    <Button 
+                      onClick={() => generate()} 
+                      className="h-10 px-6 rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 font-bold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none group"
+                    >
+                      Start {practiceType === 'mcq' ? 'MCQs' : 'Flashcards'}
+                      <ArrowRight className="w-4 h-4 ml-1.5 group-hover:translate-x-0.5 transition-transform" />
+                    </Button>
                   </div>
                 )}
               </div>
-              <div className="space-y-1 text-center">
-                <h3 className="text-sm font-semibold text-foreground/80">
-                  {isIndexing ? 'Indexing Entire Document...' : `Generating ${practiceType === 'mcq' ? 'Questions' : 'Flashcards'}...`}
-                </h3>
-                <p className="text-[12px] text-muted-foreground/40 italic">
-                  {isIndexing ? 'Google AI is scanning 30,000+ characters' : 'Analyzing your high-yield facts'}
-                </p>
-              </div>
-            </>
-          ) : error ? (
-            <>
-              <div className="w-14 h-14 rounded-2xl bg-rose-500/10 border border-rose-500/15 flex items-center justify-center mx-auto">
-                <AlertCircle className="w-7 h-7 text-rose-400" />
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-foreground/80">Generation failed</h3>
-                <p className="text-[12px] text-muted-foreground/40 leading-relaxed px-4">{error}</p>
-              </div>
-              <Button onClick={() => generate()} className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 px-5 text-[12px]">
-                Try Again
-              </Button>
-            </>
-          ) : (
-            <>
-              <div className="w-14 h-14 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto">
-                {practiceType === 'mcq'
-                  ? <ListChecks className="w-7 h-7 text-muted-foreground/30" />
-                  : <Layers className="w-7 h-7 text-muted-foreground/30" />
-                }
-              </div>
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-foreground/80">
-                  {practiceType === 'mcq' ? 'Multiple Choice Questions' : 'Flashcards'}
-                </h3>
-                <p className="text-[12px] text-muted-foreground/40 leading-relaxed">
-                  {context
-                    ? `Generate ${config.count} ${practiceType === 'mcq' ? 'exam-style questions' : 'study flashcards'} from your document.`
-                    : 'Upload a document first to start practicing.'
-                  }
-                </p>
-              </div>
-              {context && (
-                <Button 
-                  onClick={() => generate()} 
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl gap-2 px-6 h-11 text-[13px] font-bold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none"
-                >
-                  Generate {config.count}
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              )}
-            </>
-          )}
+            )}
+          </div>
         </div>
       </div>
+    );
+  };
+
+  return (
+    <div className="h-full flex flex-col relative overflow-hidden bg-[#0A0A0B]">
+      <ResponsiveConfig 
+        isDesktop={isDesktop}
+        isOpen={isConfigOpen}
+        onClose={() => setIsConfigOpen(false)}
+        config={config}
+        onConfigChange={setConfig}
+        onGenerate={generate}
+      />
+      {renderCurrentView()}
     </div>
   );
 }
@@ -356,17 +394,17 @@ function PracticeTabs({
   onConfigChange: (c: PracticeConfig) => void;
   isOpen: boolean;
   setIsOpen: (o: boolean) => void;
-  onGenerate: (force?: boolean) => void;
+  onGenerate: () => void;
 }) {
   return (
-    <div className="shrink-0 px-3 py-2 border-b border-white/[0.06] flex items-center justify-between bg-black/20 backdrop-blur-sm">
-      <div className="flex items-center gap-1.5 lg:gap-2 overflow-x-auto scrollbar-none">
+    <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04] bg-[#0A0A0B]/50 backdrop-blur-md sticky top-0 z-20">
+      <div className="flex items-center gap-1 bg-white/[0.03] p-1 rounded-xl border border-white/[0.05]">
         <button
           onClick={() => setType('mcq')}
-          className={`flex items-center gap-1.5 px-3 py-2 lg:py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
             type === 'mcq'
-              ? 'bg-indigo-600 text-white border border-indigo-700/50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]'
-              : 'text-muted-foreground/40 hover:text-muted-foreground/60 hover:bg-white/[0.03] border border-transparent'
+              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/10'
+              : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
           }`}
         >
           <ListChecks className="w-3.5 h-3.5" />
@@ -374,22 +412,21 @@ function PracticeTabs({
         </button>
         <button
           onClick={() => setType('flashcard')}
-          className={`flex items-center gap-1.5 px-3 py-2 lg:py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
             type === 'flashcard'
-              ? 'bg-indigo-600 text-white border border-indigo-700/50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]'
-              : 'text-muted-foreground/40 hover:text-muted-foreground/60 hover:bg-white/[0.03] border border-transparent'
+              ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/10'
+              : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
           }`}
         >
           <Layers className="w-3.5 h-3.5" />
           Flashcards
         </button>
-        <div className="w-px h-4 bg-white/5 mx-1" />
         <button
           onClick={() => setType('saved')}
-          className={`flex items-center gap-1.5 px-3 py-2 lg:py-1.5 rounded-lg text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all ${
             type === 'saved'
-              ? 'bg-indigo-600 text-white border border-indigo-700/50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]'
-              : 'text-muted-foreground/40 hover:text-muted-foreground/60 hover:bg-white/[0.03] border border-transparent'
+              ? 'bg-white/10 text-white border border-white/10'
+              : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
           }`}
         >
           <BookOpen className="w-3.5 h-3.5" />
@@ -397,132 +434,164 @@ function PracticeTabs({
         </button>
       </div>
 
-      {/* Settings Dialog Trigger */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-          <button className="p-2 rounded-lg text-muted-foreground/40 hover:text-indigo-400 hover:bg-indigo-500/10 transition-all cursor-pointer group">
-            <Settings2 className="w-4 h-4 transition-transform group-hover:rotate-90 duration-500" />
-          </button>
-        </DialogTrigger>
-        <DialogContent className="max-w-sm w-[calc(100vw-2rem)] bg-[#0a0a0b] border-white/10 p-0 overflow-hidden shadow-2xl rounded-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="p-6 border-b border-white/5 bg-white/[0.01]">
-            <DialogTitle className="text-lg font-bold tracking-tight text-white uppercase">Practice Config</DialogTitle>
-            <p className="text-[11px] text-muted-foreground/40 font-medium mt-1">Fine-tune the AI lecturer's question generation</p>
-          </DialogHeader>
-          
-          <div className="p-6 space-y-6">
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Question Count</Label>
-                <span className="text-[10px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full">{config.count} items</span>
-              </div>
-              <div className="grid grid-cols-4 gap-1.5">
-                {[10, 20, 40, 100].map((num) => (
-                  <button
-                    key={num}
-                    onClick={() => onConfigChange({ ...config, count: num })}
-                    className={cn(
-                      "h-9 rounded-lg border text-[11px] font-bold transition-all hover:translate-y-[-1px] active:translate-y-[0px]",
-                      config.count === num
-                        ? "bg-indigo-600 text-white border-indigo-700/50 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)]"
-                        : "bg-white/[0.02] border-white/5 text-muted-foreground/40 hover:border-white/10 hover:text-muted-foreground/60"
-                    )}
-                  >
-                    {num}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Difficulty Level</Label>
-              <Select 
-                value={config.difficulty} 
-                onValueChange={(val: Difficulty) => onConfigChange({ ...config, difficulty: val })}
-              >
-                <SelectTrigger className="w-full bg-white/[0.02] border-white/10 rounded-xl h-11 text-[13px] font-medium focus:ring-indigo-500 shadow-sm transition-all hover:border-white/20">
-                  <SelectValue placeholder="Select difficulty" />
-                </SelectTrigger>
-                <SelectContent className="bg-[#0f0f12] border-white/10 rounded-xl shadow-2xl">
-                  <SelectItem value="Easy" className="text-[13px] font-medium focus:bg-indigo-500/20 focus:text-indigo-400">Easy</SelectItem>
-                  <SelectItem value="Medium" className="text-[13px] font-medium focus:bg-indigo-500/20 focus:text-indigo-400">Medium</SelectItem>
-                  <SelectItem value="Hard" className="text-[13px] font-medium focus:bg-indigo-500/20 focus:text-indigo-400">Hard</SelectItem>
-                  <SelectItem value="Exam-style" className="text-[13px] font-black uppercase italic text-indigo-400 focus:bg-indigo-500/20">Exam-style</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-[10px] text-muted-foreground/30 italic leading-relaxed">
-                {config.difficulty === 'Easy' && "Straightforward recall and basic terminology."}
-                {config.difficulty === 'Medium' && "A balanced mix of concepts and scenarios."}
-                {config.difficulty === 'Hard' && "Complex clinical reasoning and integrated facts."}
-                {config.difficulty === 'Exam-style' && "Board-exam complexity (NAPLEX/FPGEC style)."}
-              </p>
-            </div>
-
-            {/* NEW: Technical Depth Slider (The Intelligence Upgrade) */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Technical Depth</Label>
-                  <Sparkles className="w-3 h-3 text-indigo-400 animate-pulse" />
-                </div>
-                <span className="text-[10px] font-black text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20 shadow-sm">Level {config.technicalDepth}</span>
-              </div>
-              
-              <div className="px-1 group/slider">
-                <input 
-                  type="range" 
-                  min="1" 
-                  max="10" 
-                  step="1"
-                  value={config.technicalDepth}
-                  onChange={(e) => onConfigChange({ ...config, technicalDepth: parseInt(e.target.value) })}
-                  className="w-full h-1.5 bg-white/5 rounded-lg appearance-none cursor-pointer accent-indigo-500 hover:accent-indigo-400 transition-all"
-                />
-                <div className="flex justify-between mt-2">
-                  <span className="text-[8px] font-bold text-muted-foreground/30 uppercase tracking-tighter">Conceptual</span>
-                  <span className="text-[8px] font-bold text-muted-foreground/30 uppercase tracking-tighter">Advanced Data</span>
-                </div>
-              </div>
-              <p className="text-[10px] text-muted-foreground/30 italic leading-relaxed">
-                {config.technicalDepth <= 3 && "Prioritizes high-level definitions and core fundamental principles."}
-                {config.technicalDepth > 3 && config.technicalDepth <= 7 && "Standard balance of mechanisms, pharmaceutical properties, and specific facts."}
-                {config.technicalDepth > 7 && "Strictly targets formulas, clinical ranges, pKa, and precise data points."}
-              </p>
-            </div>
-
-            <div className="space-y-3 pt-2">
-              <Button
-                variant="outline"
-                className="w-full bg-white/[0.02] border-white/10 rounded-xl h-11 text-[11px] font-bold text-muted-foreground/60 hover:text-indigo-400 hover:border-indigo-500/30 hover:bg-indigo-500/5 flex items-center justify-center gap-2 group/refresh transition-all duration-300"
-                onClick={() => {
-                  setIsOpen(false);
-                  onGenerate(true); // forceReindex = true
-                }}
-              >
-                <RefreshCw className="w-3.5 h-3.5 group-hover/refresh:rotate-180 transition-transform duration-700" />
-                Refresh AI Brains
-              </Button>
-              <p className="text-[9px] text-muted-foreground/20 px-1 text-center font-medium italic">
-                Scanning your notes for intricate clinical & pharmaceutical details...
-              </p>
-            </div>
-          </div>
-
-          <div className="p-4 bg-white/[0.01] border-t border-white/5">
-            <Button 
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl h-11 text-[12px] font-bold shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none"
-              onClick={() => setIsOpen(false)}
-            >
-              Apply Settings
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <button 
+        onClick={() => setIsOpen(true)}
+        className="w-9 h-9 flex items-center justify-center rounded-xl bg-white/[0.03] border border-white/[0.08] text-muted-foreground/60 hover:text-foreground transition-all active:scale-90"
+      >
+        <Settings2 className="w-4 h-4" />
+      </button>
     </div>
   );
 }
 
-import { getQuestionSessions, getSessionQuestions } from '@/lib/supabase/actions';
+// Sub-component: Responsive Configuration Manager
+function ResponsiveConfig({
+  isDesktop,
+  isOpen,
+  onClose,
+  config,
+  onConfigChange,
+  onGenerate
+}: {
+  isDesktop: boolean;
+  isOpen: boolean;
+  onClose: () => void;
+  config: PracticeConfig;
+  onConfigChange: (c: PracticeConfig) => void;
+  onGenerate: () => void;
+}) {
+  const content = (
+    <div className="space-y-8">
+      {!isDesktop && (
+        <div className="space-y-1">
+          <h3 className="text-xl font-bold text-white tracking-tight">Practice Config</h3>
+          <p className="text-[12px] text-muted-foreground/40 font-medium">Fine-tune the AI lecturer's question generation</p>
+        </div>
+      )}
+
+      <div className="space-y-6">
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Question Count</Label>
+            <span className="text-[10px] font-black text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">{config.count} items</span>
+          </div>
+          <div className="flex gap-2">
+            {[10, 20, 40, 100].map((num) => (
+              <button
+                key={num}
+                onClick={() => onConfigChange({ ...config, count: num })}
+                className={`flex-1 py-3 lg:py-2 rounded-xl text-[12px] font-bold border transition-all active:scale-95 ${
+                  config.count === num
+                    ? 'bg-indigo-600 border-indigo-500 text-white'
+                    : 'bg-white/[0.02] border-white/[0.06] text-muted-foreground/60 hover:bg-white/[0.05]'
+                }`}
+              >
+                {num}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-4 pt-2">
+          <Label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Difficulty Level</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {(['Easy', 'Medium', 'Hard', 'Exam-style'] as Difficulty[]).map((level) => (
+              <button
+                key={level}
+                onClick={() => onConfigChange({ ...config, difficulty: level })}
+                className={`w-full py-3 lg:py-2 rounded-xl text-[12px] font-bold border transition-all active:scale-95 ${
+                  config.difficulty === level
+                    ? 'bg-indigo-600 border-indigo-500 text-white'
+                    : 'bg-white/[0.02] border-white/[0.06] text-muted-foreground/60 hover:bg-white/[0.05]'
+                }`}
+              >
+                {level}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground/30 italic leading-relaxed px-1">
+            {config.difficulty === 'Easy' && "Focuses on core definitions and primary concepts."}
+            {config.difficulty === 'Medium' && "A balanced mix of concepts and applied scenarios."}
+            {config.difficulty === 'Hard' && "Targets intricate details and complex reasoning."}
+            {config.difficulty === 'Exam-style' && "Strictly simulates high-stakes board examination formats."}
+          </p>
+        </div>
+
+        <div className="pt-4 flex flex-col gap-3">
+          <Button 
+            onClick={() => { onGenerate(); onClose(); }}
+            className="w-full h-14 lg:h-11 rounded-2xl lg:rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 font-bold text-[15px] lg:text-[13px] active:scale-[0.98] transition-all"
+          >
+            Apply Settings
+          </Button>
+          {!isDesktop && (
+            <Button 
+              variant="ghost" 
+              onClick={onClose}
+              className="w-full h-12 rounded-xl text-muted-foreground/40 font-semibold text-[13px] hover:text-foreground"
+            >
+              Cancel
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  if (isDesktop) {
+    return (
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="sm:max-w-md bg-[#0D0D12] border-white/[0.08] shadow-2xl p-8 rounded-3xl">
+          <DialogHeader className="mb-6">
+            <DialogTitle className="text-xl font-bold text-white tracking-tight">Practice Config</DialogTitle>
+          </DialogHeader>
+          {content}
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
+  return (
+    <AnimatePresence mode="wait">
+      {isOpen && (
+        <motion.div 
+          key="config-overlay"
+          initial="closed"
+          animate="open"
+          exit="closed"
+          className="fixed inset-0 z-[100] flex flex-col justify-end"
+        >
+          {/* Backdrop */}
+          <motion.div
+            variants={{
+              open: { opacity: 1 },
+              closed: { opacity: 0 }
+            }}
+            transition={{ duration: 0.3 }}
+            onClick={onClose}
+            className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+          />
+          
+          {/* Sheet */}
+          <motion.div
+            variants={{
+              open: { y: 0 },
+              closed: { y: '100%' }
+            }}
+            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+            className="relative bg-[#0D0D12] border-t border-white/[0.08] rounded-t-[32px] p-6 pb-12 shadow-2xl overflow-hidden"
+          >
+            <div className="flex justify-center mb-6">
+              <div className="w-12 h-1.5 rounded-full bg-white/10" />
+            </div>
+            {content}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 
 type SessionFilter = 'all' | 'mcq' | 'flashcard';
 
@@ -580,12 +649,13 @@ function SavedSessionsBrowser({ courseId, onSelectSession }: { courseId?: string
   return (
     <div className="p-4 space-y-3 overflow-y-auto max-h-full">
       {/* Type filter tabs */}
-      <div className="flex items-center gap-1.5 px-1">
+      {/* Type filter tabs */}
+      <div className="flex items-center gap-1.5 px-1 overflow-x-auto scrollbar-none pb-1">
         <button
           onClick={() => setFilter('all')}
-          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+          className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
             filter === 'all'
-              ? 'bg-white/10 text-foreground border border-white/10'
+              ? 'bg-white/10 text-foreground border border-white/10 shadow-lg shadow-black/20'
               : 'text-muted-foreground/40 hover:text-muted-foreground/60 hover:bg-white/[0.03] border border-transparent'
           }`}
         >
@@ -594,26 +664,26 @@ function SavedSessionsBrowser({ courseId, onSelectSession }: { courseId?: string
         {mcqCount > 0 && (
           <button
             onClick={() => setFilter('mcq')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
               filter === 'mcq'
-                ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/20'
+                ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 shadow-lg shadow-indigo-500/5'
                 : 'text-muted-foreground/40 hover:text-muted-foreground/60 hover:bg-white/[0.03] border border-transparent'
             }`}
           >
-            <ListChecks className="w-3 h-3" />
+            <ListChecks className="w-3.5 h-3.5" />
             MCQs ({mcqCount})
           </button>
         )}
         {flashcardCount > 0 && (
           <button
             onClick={() => setFilter('flashcard')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${
+            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap active:scale-95 ${
               filter === 'flashcard'
-                ? 'bg-violet-500/15 text-violet-400 border border-violet-500/20'
+                ? 'bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 shadow-lg shadow-indigo-500/5'
                 : 'text-muted-foreground/40 hover:text-muted-foreground/60 hover:bg-white/[0.03] border border-transparent'
             }`}
           >
-            <Layers className="w-3 h-3" />
+            <Layers className="w-3.5 h-3.5" />
             Flashcards ({flashcardCount})
           </button>
         )}
@@ -626,39 +696,39 @@ function SavedSessionsBrowser({ courseId, onSelectSession }: { courseId?: string
             key={session.id}
             onClick={() => handleSelect(session)}
             disabled={loadingQuestionsId !== null}
-            className="w-full flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-indigo-500/30 transition-all group"
+            className="w-full flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/5 active:bg-white/[0.06] active:border-indigo-500/40 transition-all group relative overflow-hidden"
           >
-            <div className="flex items-center gap-4">
+            {/* Subtle row highlight for premium feel */}
+            <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/0 via-indigo-500/[0.02] to-indigo-500/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+            
+            <div className="flex items-center gap-4 relative z-10">
               <div className={cn(
-                "w-9 h-9 rounded-lg flex items-center justify-center border text-[10px] font-bold",
+                "w-10 h-10 rounded-xl flex items-center justify-center border text-[10px] font-bold shadow-inner transition-transform group-active:scale-90",
                 session.type === 'mcq' 
                    ? "bg-indigo-500/10 border-indigo-500/20 text-indigo-400" 
-                   : "bg-violet-500/10 border-violet-500/20 text-violet-400"
+                   : "bg-indigo-500/10 border-indigo-500/20 text-indigo-400"
               )}>
-                {session.type === 'mcq' ? 'MCQ' : 'FLSH'}
+                {session.type === 'mcq' ? <ListChecks className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
               </div>
               <div className="text-left">
-                <p className="font-bold text-[14px] group-hover:text-foreground transition-colors tracking-tight text-foreground/90 leading-none mb-1">
+                <p className="font-bold text-[15px] lg:text-[14px] group-hover:text-foreground transition-colors tracking-tight text-foreground/90 leading-tight mb-1">
                   {session.title || "Untitled Session"}
                 </p>
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/40 font-medium italic">
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/40 font-medium">
                   <Calendar className="w-3 h-3" />
                   {new Date(session.created_at).toLocaleDateString()}
-                  <span className={`ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
-                    session.type === 'mcq' 
-                      ? 'bg-indigo-500/10 text-indigo-400' 
-                      : 'bg-violet-500/10 text-violet-400'
-                  }`}>
-                    {session.type === 'mcq' ? 'Practice as MCQ' : 'Practice as Flashcards'}
-                  </span>
                 </div>
               </div>
             </div>
-            {loadingQuestionsId === session.id ? (
-              <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
-            ) : (
-              <ChevronRightIcon className="w-4 h-4 text-muted-foreground/20 group-hover:text-indigo-400 transition-all" />
-            )}
+            <div className="relative z-10">
+              {loadingQuestionsId === session.id ? (
+                <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />
+              ) : (
+                <div className="w-8 h-8 rounded-full flex items-center justify-center bg-white/5 border border-white/5 text-muted-foreground/20 group-hover:text-indigo-400 group-hover:border-indigo-500/30 transition-all">
+                  <ChevronRightIcon className="w-4 h-4" />
+                </div>
+              )}
+            </div>
           </button>
         ))}
 

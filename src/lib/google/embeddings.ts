@@ -44,6 +44,9 @@ export async function indexDocument(
   courseId?: string,
   userId?: string
 ) {
+  if (!userId) {
+    throw new Error("User authentication is required for indexing. Please log in again.");
+  }
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set.");
 
@@ -155,7 +158,17 @@ export async function searchContent(
     p_note_id: noteId || null
   });
 
-  if (error || !data) return null;
+  if (error) {
+    console.error('❌ [Embeddings] Search RPC failed:', error);
+    return null;
+  }
+
+  if (!data || data.length === 0) {
+    console.warn(`⚠️ [Embeddings] 0 sections found for search (Note: ${noteId || 'all'}, Course: ${courseId || 'all'}). Verify data exists and RLS user_id is assigned.`);
+    return null;
+  }
+
+  console.log(`🔍 [Embeddings] Successfully retrieved ${data.length} candidate sections.`);
 
   // Rank: similarity first, depth as tiebreaker
   return rankChunks(data, targetDepth, count);

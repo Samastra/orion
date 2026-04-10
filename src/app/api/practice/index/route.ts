@@ -12,8 +12,16 @@ export async function POST(req: NextRequest) {
 
     // Get the authenticated user's ID for RLS
     const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    const userId = user?.id;
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json({ 
+        error: "Session expired or invalid. Please log in again to sync practice data.", 
+        details: authError?.message 
+      }, { status: 401 });
+    }
+    
+    const userId = user.id;
 
     // Check cache (skip re-indexing unless forced)
     if (!force) {
