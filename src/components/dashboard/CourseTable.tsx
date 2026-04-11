@@ -27,7 +27,11 @@ import { getPerformanceData } from "@/lib/supabase/actions";
 import { PerformanceChart } from "./PerformanceChart";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
-export function CourseTable() {
+interface CourseTableProps {
+  onCourseClick?: (course: any) => void;
+}
+
+export function CourseTable({ onCourseClick }: CourseTableProps) {
   const [courses, setCourses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("outline");
@@ -74,10 +78,10 @@ export function CourseTable() {
           ))
         ) : courses.length > 0 ? (
           courses.map((course) => (
-            <Link
+            <button
               key={course.id}
-              href={`/dashboard/courses/${course.id}`}
-              className="block"
+              onClick={() => onCourseClick?.(course)}
+              className="w-full text-left"
             >
               <div className="flex items-center gap-3 py-3 px-1 active:bg-white/[0.04] rounded-xl transition-colors">
                 {/* Subtle dot indicator */}
@@ -94,7 +98,7 @@ export function CourseTable() {
                 {/* Chevron */}
                 <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/15 shrink-0" />
               </div>
-            </Link>
+            </button>
           ))
         ) : (
           <div className="flex flex-col items-center justify-center py-12 text-center">

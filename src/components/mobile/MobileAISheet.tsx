@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Square, Sparkles, BookOpen, Lightbulb, Brain, MessageCircle } from 'lucide-react';
+import { Send, Square, Sparkles, BookOpen, Lightbulb, Brain, MessageCircle, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -27,7 +27,7 @@ interface MobileAISheetProps {
   apiMode?: string;
 }
 
-// ─── Sub-component: Message Bubble ──────────────────────────────
+// ─── Sub-component: Message Bubble (RESTORED ORIGINAL UI) ───────
 
 function AIMessageBubble({ message }: { message: Message }) {
   if (message.role === 'user') {
@@ -58,7 +58,7 @@ function AIMessageBubble({ message }: { message: Message }) {
   );
 }
 
-// ─── Sub-component: Typing Indicator ────────────────────────────
+// ─── Sub-component: Typing Indicator (RESTORED ORIGINAL UI) ──────
 
 function TypingIndicator() {
   return (
@@ -73,7 +73,7 @@ function TypingIndicator() {
   );
 }
 
-// ─── Sub-component: Chat Input ──────────────────────────────────
+// ─── Sub-component: Chat Input (RESTORED ORIGINAL UI) ────────────
 
 function MobileAIChatInput({
   input, setInput, isLoading, onSend, onStop,
@@ -123,7 +123,7 @@ function MobileAIChatInput({
   );
 }
 
-// ─── Quick Prompt Icons ─────────────────────────────────────────
+// ─── Quick Prompt Icons (RESTORED ORIGINAL ICONS) ───────────────
 
 const PROMPT_ICONS: Record<string, React.ReactNode> = {
   'Summarize': <BookOpen className="w-3.5 h-3.5" />,
@@ -132,7 +132,7 @@ const PROMPT_ICONS: Record<string, React.ReactNode> = {
   'Explain simply': <MessageCircle className="w-3.5 h-3.5" />,
 };
 
-// ─── Sub-component: Empty State ─────────────────────────────────
+// ─── Sub-component: Empty State (RESTORED ORIGINAL UI) ───────────
 
 function AISheetEmptyState({
   quickPrompts, onSelectPrompt,
@@ -171,7 +171,7 @@ function AISheetEmptyState({
   );
 }
 
-// ─── Main Component ─────────────────────────────────────────────
+// ─── Main Component (UI RESTORED + UNIFIED SYNC LOGIC) ───────────
 
 export function MobileAISheet({
   open, onClose, noteId, courseId, title, subtitle,
@@ -184,14 +184,56 @@ export function MobileAISheet({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  // Sync Logic — Same as Desktop
+  const [isIndexed, setIsIndexed] = useState<boolean | null>(null);
+  const [isIndexing, setIsIndexing] = useState(false);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Check Sync Status — Same as Desktop
+  useEffect(() => {
+    const checkStatus = async () => {
+      if (!noteId || !open) return;
+      try {
+        const res = await fetch(`/api/practice/index?noteId=${noteId}`);
+        const data = await res.json();
+        setIsIndexed(data.indexed);
+      } catch (e) {
+        console.error('Failed to check index status:', e);
+      }
+    };
+    checkStatus();
+  }, [noteId, open]);
+
+  const handleIndexNote = async () => {
+    if (!noteId || isIndexing) return false;
+    setIsIndexing(true);
+    try {
+      const res = await fetch('/api/practice/index', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noteId, force: true })
+      });
+      if (res.ok) {
+        setIsIndexed(true);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('Indexing failed:', e);
+      return false;
+    } finally {
+      setIsIndexing(false);
+    }
+  };
 
   const sendMessage = async (content?: string) => {
     const text = content || input;
     if (!text.trim() || isLoading) return;
 
+    // 1. Show user message and start "Thinking" immediately
     const userMsg: Message = { role: 'user', content: text };
     const updated = [...messages, userMsg];
     setMessages(updated);
@@ -202,18 +244,31 @@ export function MobileAISheet({
     abortRef.current = controller;
 
     try {
+      // 2. INVISIBLE SYNC: If not indexed, do it silently before the AI call
+      if (isIndexed !== true) {
+        const success = await handleIndexNote();
+        if (!success) {
+          throw new Error("I had trouble reading your document. Please check if the note has content and try again.");
+        }
+      }
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updated, noteId, courseId, mode: apiMode }),
+        body: JSON.stringify({ messages: updated.map(m => ({ role: m.role, content: m.content })), noteId, courseId, mode: apiMode }),
         signal: controller.signal,
       });
-      if (!res.ok) throw new Error('API error');
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'API error');
+      }
+
       const data = await res.json();
       setMessages((prev) => [...prev, { role: 'ai', content: data.content }]);
     } catch (err: any) {
       if (err.name !== 'AbortError') {
-        setMessages((prev) => [...prev, { role: 'ai', content: '⚠️ Could not reach the AI. Try again.' }]);
+        setMessages((prev) => [...prev, { role: 'ai', content: `⚠️ ${err.message || 'Could not reach the AI. Try again.'}` }]);
       }
     } finally {
       setIsLoading(false);
@@ -245,12 +300,12 @@ export function MobileAISheet({
             className="fixed bottom-0 left-0 right-0 z-[110] flex flex-col rounded-t-[20px] overflow-hidden"
             style={{ height: '78vh' }}
           >
-            {/* Background with subtle gradient */}
+            {/* Background with subtle gradient (Preserved UI) */}
             <div className="absolute inset-0 bg-[#0a0a0c]" />
             <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-indigo-500/[0.04] to-transparent" />
             <div className="absolute inset-0 border-t border-white/[0.08] rounded-t-[20px] pointer-events-none" />
 
-            {/* Handle + header */}
+            {/* Handle + header (Preserved UI) */}
             <div className="relative shrink-0">
               <div className="flex justify-center pt-2.5 pb-1.5">
                 <div className="w-9 h-[4px] rounded-full bg-white/[0.12]" />
@@ -277,13 +332,15 @@ export function MobileAISheet({
               <div className="h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
             </div>
 
-            {/* Messages area */}
+            {/* Messages area (Preserved UI — Silent Indexing) */}
             <div className="relative flex-1 overflow-y-auto overscroll-contain px-4 py-4">
               {messages.length === 0 ? (
-                <AISheetEmptyState
-                  quickPrompts={quickPrompts}
-                  onSelectPrompt={(p) => sendMessage(p)}
-                />
+                <div className="flex flex-col h-full">
+                  <AISheetEmptyState
+                    quickPrompts={quickPrompts}
+                    onSelectPrompt={(p) => sendMessage(p)}
+                  />
+                </div>
               ) : (
                 <div className="space-y-5">
                   {messages.map((msg, i) => (
@@ -302,7 +359,7 @@ export function MobileAISheet({
               )}
             </div>
 
-            {/* Input */}
+            {/* Input (Preserved UI) */}
             <div className="relative shrink-0">
               <div className="h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
               <MobileAIChatInput

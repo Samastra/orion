@@ -138,7 +138,8 @@ export function MobileNoteReader({ note, onClose }: MobileNoteReaderProps) {
       <MobileAISheet
         open={showAI}
         onClose={() => setShowAI(false)}
-        context={note.content}
+        noteId={note.id}
+        courseId={note.course_id}
         title="AI Tutor"
         subtitle={`Studying: ${note.title}`}
       />

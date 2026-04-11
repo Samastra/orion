@@ -48,11 +48,16 @@ export async function POST(req: NextRequest) {
       chunkCount: 6,
     });
 
+    if (!retrieved.text && noteId) {
+      console.error(`❌ [Chat API] No indexed content found for noteId: ${noteId}. Aborting to prevent generic response.`);
+      return NextResponse.json({ 
+        error: 'I cannot find any indexed content for this note. Please click "Sync with AI" and try again.' 
+      }, { status: 422 });
+    }
+
     if (retrieved.text) {
       systemContent += `\n\n--- RELEVANT DOCUMENT SECTIONS ---\n${retrieved.text}\n--- END SECTIONS ---`;
       console.log(`📚 [Chat RAG] Retrieved ${retrieved.chunkCount} chunks (${retrieved.totalChars} chars) for query: "${query.slice(0, 80)}..."`);
-    } else {
-      console.log(`⚠️ [Chat RAG] No indexed content found for noteId=${noteId}, courseId=${courseId}. Proceeding without context.`);
     }
 
     const apiMessages = [

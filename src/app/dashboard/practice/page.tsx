@@ -210,7 +210,7 @@ export default function PracticePage() {
   // ─────────────────────────────────────────────
   if (scopeStep === 'practice' && selectedCourse) {
     return (
-      <div className="flex flex-col h-[calc(100vh-120px)] animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col h-[calc(100vh-60px)] animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Header */}
         <div className="flex items-center justify-between mb-6 px-4">
           <div className="flex items-center gap-4">

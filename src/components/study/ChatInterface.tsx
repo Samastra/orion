@@ -9,6 +9,7 @@ import { ChatModeToggle, StudyMode } from './ChatModeToggle';
 import { ChatWelcomeScreen } from './ChatWelcomeScreen';
 import { ChatInputBar } from './ChatInputBar';
 import { ChatMessageList } from './ChatMessageList';
+import { Sparkles, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
 
 interface Message {
   role: 'ai' | 'user';
@@ -45,6 +46,10 @@ export const ChatInterface = React.forwardRef<
   const abortControllerRef = useRef<AbortController | null>(null);
   const processedActionRef = useRef<string | null>(null);
 
+  // Indexing status
+  const [isIndexed, setIsIndexed] = useState<boolean | null>(null);
+  const [isIndexing, setIsIndexing] = useState(false);
+
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
 
   // Close mode menu on outside click
@@ -79,12 +84,57 @@ export const ChatInterface = React.forwardRef<
     }
   }, [sessionId, messages]);
 
+  // Check if note is indexed
+  useEffect(() => {
+    const checkStatus = async () => {
+      if (!noteId) return;
+      try {
+        const res = await fetch(`/api/practice/index?noteId=${noteId}`);
+        const data = await res.json();
+        setIsIndexed(data.indexed);
+      } catch (e) {
+        console.error('Failed to check index status:', e);
+      }
+    };
+    checkStatus();
+  }, [noteId]);
+
+  const handleIndexNote = async () => {
+    if (!noteId || isIndexing) return false;
+    setIsIndexing(true);
+    try {
+      const res = await fetch('/api/practice/index', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ noteId, force: true })
+      });
+      if (res.ok) {
+        setIsIndexed(true);
+        return true;
+      }
+      return false;
+    } catch (e) {
+      console.error('Indexing failed:', e);
+      return false;
+    } finally {
+      setIsIndexing(false);
+    }
+  };
+
   const sendToAI = async (allMessages: Message[]) => {
     setIsLoading(true);
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
     try {
+      // INVISIBLE SYNC: If not indexed, do it silently before the AI call
+      if (isIndexed !== true) {
+        const success = await handleIndexNote();
+        if (!success) {
+          throw new Error("I had trouble reading your document. Please check if the note has content and try again.");
+        }
+      }
+
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -92,12 +142,15 @@ export const ChatInterface = React.forwardRef<
         signal: controller.signal,
       });
 
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || `API error: ${res.status}`);
+      }
       const data = await res.json();
       setMessages(prev => [...prev, { role: 'ai', content: data.content, timestamp: ts() }]);
     } catch (error: any) {
       if (error.name === 'AbortError') return;
-      setMessages(prev => [...prev, { role: 'ai', content: '⚠️ The tutor is disconnected. Retrying...', timestamp: ts() }]);
+      setMessages(prev => [...prev, { role: 'ai', content: `⚠️ ${error.message || 'The tutor is disconnected. Retrying...'}`, timestamp: ts() }]);
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;
@@ -169,9 +222,14 @@ export const ChatInterface = React.forwardRef<
           <div className="flex-1 overflow-auto min-h-0 scrollbar-hide flex flex-col">
             <AnimatePresence mode="wait">
               {messages.length === 0 ? (
-                <motion.div key="welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col">
-                  <ChatWelcomeScreen userName={userName} onAction={(id) => {
+                <motion.div key="welcome" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col pt-12">
+                  <div className="px-6 flex justify-center h-8">
+                    {/* Invisible sync logic handles this area now */}
+                  </div>
+
+                  <ChatWelcomeScreen userName={userName} onAction={async (id) => {
                     if (id === 'quiz') { setShouldAutoPractice(true); switchMode('practice'); return; }
+                    
                     const prompts: Record<string, string> = {
                       summarize: "Summarize this document.",
                       concepts: "What are the key concepts?",
@@ -180,7 +238,7 @@ export const ChatInterface = React.forwardRef<
                     const content = prompts[id];
                     if (content) {
                       const userMsg: Message = { role: 'user', content, timestamp: ts() };
-                      const updated = [...messages, userMsg];
+                      const updated = [userMsg];
                       setMessages(updated);
                       sendToAI(updated);
                     }

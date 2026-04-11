@@ -37,11 +37,28 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!content) {
+    let indexingContent = content;
+
+    // AUTO-FETCH CONTENT: If missing, grab from DB
+    if (!indexingContent && noteId) {
+      console.log(`📡 [Indexer] No content provided. Fetching from DB for note: ${noteId}`);
+      const { data: note, error: fetchError } = await supabase
+        .from('notes')
+        .select('content')
+        .eq('id', noteId)
+        .single();
+      
+      if (fetchError || !note) {
+        return NextResponse.json({ error: "Could not find note content in database." }, { status: 404 });
+      }
+      indexingContent = note.content;
+    }
+
+    if (!indexingContent) {
       return NextResponse.json({ error: "Content is required for indexing." }, { status: 400 });
     }
 
-    const result = await indexDocument(content, noteId, courseId, userId);
+    const result = await indexDocument(indexingContent, noteId, courseId, userId);
 
     return NextResponse.json({ 
       success: true, 

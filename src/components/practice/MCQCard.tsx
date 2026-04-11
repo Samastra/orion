@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { CheckCircle2, XCircle, Circle } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -11,7 +12,7 @@ export interface MCQQuestion {
   question: string;
   options: string[];
   correctIndex: number;
-  explanation: string;
+  optionExplanations: string[];
 }
 
 interface MCQCardProps {
@@ -56,20 +57,21 @@ export function MCQCard({
       </div>
 
       {/* Options */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {question.options.map((option, i) => {
           const isCorrect = i === question.correctIndex;
           const isSelected = i === selected;
+          const explanation = question.optionExplanations?.[i];
           
           let style = 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] cursor-pointer active:scale-[0.98] transition-all';
           
           if (revealed) {
             if (isCorrect) {
-              style = 'border-emerald-500/30 bg-emerald-500/10';
+              style = 'border-emerald-500/30 bg-emerald-500/10 shadow-[0_0_20px_rgba(16,185,129,0.05)]';
             } else if (isSelected && !isCorrect) {
-              style = 'border-rose-500/30 bg-rose-500/10';
+              style = 'border-rose-500/30 bg-rose-500/10 shadow-[0_0_20px_rgba(244,63,94,0.05)]';
             } else {
-              style = 'border-white/[0.04] bg-white/[0.01] opacity-50';
+              style = 'border-white/[0.04] bg-white/[0.01] opacity-40 grayscale-[0.5]';
             }
           }
 
@@ -78,9 +80,9 @@ export function MCQCard({
               key={i}
               onClick={() => handleSelect(i)}
               disabled={revealed}
-              className={`w-full flex items-center gap-3 px-4 py-3.5 lg:py-3 rounded-xl border transition-all text-left ${style}`}
+              className={`w-full flex items-start gap-4 px-4 py-4 lg:py-3.5 rounded-2xl border transition-all text-left ${style}`}
             >
-              <span className={`w-8 h-8 lg:w-7 lg:h-7 rounded-lg flex items-center justify-center text-[12px] font-bold shrink-0 ${
+              <span className={`w-8 h-8 lg:w-7 lg:h-7 rounded-lg flex items-center justify-center text-[12px] font-black shrink-0 mt-0.5 ${
                 revealed && isCorrect
                   ? 'bg-emerald-500/20 text-emerald-400'
                   : revealed && isSelected && !isCorrect
@@ -95,29 +97,31 @@ export function MCQCard({
                   OPTION_LABELS[i]
                 )}
               </span>
-              <div className={`text-[13px] leading-relaxed prose prose-invert prose-sm max-w-none [&_p]:m-0 ${
-                revealed && isCorrect ? 'text-emerald-300 font-bold' : 'text-foreground/80 font-medium'
-              }`}>
-                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-                  {option}
-                </ReactMarkdown>
+              <div className="flex-1 space-y-2">
+                <div className={`text-[13.5px] leading-relaxed prose prose-invert prose-sm max-w-none [&_p]:m-0 ${
+                  revealed && isCorrect ? 'text-emerald-300 font-bold' : 'text-foreground/80 font-medium'
+                }`}>
+                  <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                    {option}
+                  </ReactMarkdown>
+                </div>
+
+                {revealed && explanation && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                    animate={{ opacity: 1, height: 'auto', marginTop: 8 }}
+                    className="text-[12px] leading-relaxed text-muted-foreground/70 border-t border-white/[0.05] pt-2"
+                  >
+                    <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
+                      {explanation}
+                    </ReactMarkdown>
+                  </motion.div>
+                )}
               </div>
             </button>
           );
         })}
       </div>
-
-      {/* Explanation */}
-      {revealed && (
-        <div className="bg-indigo-500/5 border border-indigo-500/10 rounded-xl px-4 py-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <span className="text-[10px] font-semibold text-indigo-400/60 uppercase tracking-widest">Explanation</span>
-          <div className="text-[13px] text-foreground/70 leading-relaxed mt-1 prose prose-invert prose-sm max-w-none [&_p]:m-0">
-            <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
-              {question.explanation}
-            </ReactMarkdown>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

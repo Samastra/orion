@@ -19,6 +19,19 @@ const EMBEDDING_MODEL = "gemini-embedding-001";
 const EMBEDDING_DIMENSIONS = 768;
 const BATCH_SIZE = 20;
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function sanitizeId(id?: string): string | undefined {
+  if (!id) return undefined;
+  const clean = id.trim().toLowerCase();
+  // If it's 36 chars but has an extra char at the start/end, try to fix it
+  if (clean.length > 36) {
+    const match = clean.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
+    if (match) return match[0];
+  }
+  return clean;
+}
+
 // ─── Retry Utility ──────────────────────────────────────────────
 
 async function withRetry<T>(fn: () => Promise<T>, retries: number = 3, delay: number = 1000): Promise<T> {
@@ -44,6 +57,9 @@ export async function indexDocument(
   courseId?: string,
   userId?: string
 ) {
+  const sNoteId = sanitizeId(noteId);
+  const sCourseId = sanitizeId(courseId);
+
   if (!userId) {
     throw new Error("User authentication is required for indexing. Please log in again.");
   }
@@ -59,8 +75,8 @@ export async function indexDocument(
   console.log(`📡 [Indexer] Document split into ${chunks.length} semantic chunks.`);
 
   // Clear existing chunks for this note
-  if (noteId) {
-    await supabase.from('document_sections').delete().eq('note_id', noteId);
+  if (sNoteId) {
+    await supabase.from('document_sections').delete().eq('note_id', sNoteId);
   }
 
   let totalChunks = 0;
@@ -88,8 +104,8 @@ export async function indexDocument(
 
       // 3. Prepare rows
       const rows = batch.map((text, idx) => ({
-        note_id: noteId,
-        course_id: courseId,
+        note_id: sNoteId,
+        course_id: sCourseId,
         user_id: userId,
         content: text,
         embedding: embeddings[idx],
@@ -126,6 +142,9 @@ export async function searchContent(
   count: number = 8,
   targetDepth: number = 5
 ) {
+  const sNoteId = sanitizeId(noteId);
+  const sCourseId = sanitizeId(courseId);
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
@@ -145,8 +164,8 @@ export async function searchContent(
   const supabase = await createClient();
 
   // 2. Course-wide diverse search (when no specific note is targeted)
-  if (!noteId && courseId) {
-    return await courseWideSearch(supabase, queryEmbedding, courseId, count, targetDepth);
+  if (!sNoteId && sCourseId) {
+    return await courseWideSearch(supabase, queryEmbedding, sCourseId, count, targetDepth);
   }
 
   // 3. Standard search (specific note or general)
@@ -154,8 +173,8 @@ export async function searchContent(
     query_embedding: queryEmbedding,
     match_threshold: 0.1,
     match_count: count * 2, // Fetch extra for ranking
-    p_course_id: courseId || null,
-    p_note_id: noteId || null
+    p_course_id: sCourseId || null,
+    p_note_id: sNoteId || null
   });
 
   if (error) {
@@ -164,7 +183,7 @@ export async function searchContent(
   }
 
   if (!data || data.length === 0) {
-    console.warn(`⚠️ [Embeddings] 0 sections found for search (Note: ${noteId || 'all'}, Course: ${courseId || 'all'}). Verify data exists and RLS user_id is assigned.`);
+    console.warn(`⚠️ [Embeddings] 0 sections found for search (Note: ${sNoteId || 'all'}, Course: ${sCourseId || 'all'}). Verify data exists and RLS user_id is assigned.`);
     return null;
   }
 

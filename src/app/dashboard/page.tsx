@@ -14,12 +14,18 @@ import { Button } from "@/components/ui/button";
 import { UserAvatar, useUser } from "@/components/auth/UserAvatar";
 import { createClient } from '@/lib/supabase/client';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { CourseStatsDrawer } from "@/components/dashboard/CourseStatsDrawer";
+import { getPerformanceData } from "@/lib/supabase/actions";
 import Link from 'next/link';
 
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
   const [courseCount, setCourseCount] = React.useState<number | null>(null);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
+  
+  // Stats Drawer State
+  const [selectedCourse, setSelectedCourse] = React.useState<any | null>(null);
+  const [performanceData, setPerformanceData] = React.useState<any[]>([]);
   
   const nickname = user?.user_metadata?.nickname;
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Student';
@@ -39,6 +45,18 @@ export default function DashboardPage() {
 
     if (user) fetchCourseCount();
   }, [user]);
+
+  React.useEffect(() => {
+    const fetchPerformance = async () => {
+      const { data } = await getPerformanceData();
+      if (data) setPerformanceData(data);
+    };
+    if (user) fetchPerformance();
+  }, [user]);
+
+  const activePerf = selectedCourse 
+    ? performanceData.find(p => p.name === selectedCourse.name) 
+    : null;
 
   const stats = [
     { label: 'Courses Active', value: courseCount !== null ? courseCount.toString() : '...', icon: BookOpen, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
@@ -63,15 +81,19 @@ export default function DashboardPage() {
           {stats.map((stat, i) => (
             <div
               key={i}
-              className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-4 space-y-3"
+              className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-3 flex flex-col gap-2.5"
             >
-              <div className={`w-9 h-9 rounded-xl ${stat.bg} flex items-center justify-center`}>
-                <stat.icon className={`w-4 h-4 ${stat.color}`} />
+              <div className="flex items-center gap-2.5">
+                <div className={`w-7 h-7 shrink-0 rounded-lg ${stat.bg} flex items-center justify-center`}>
+                  <stat.icon className={`w-3.5 h-3.5 ${stat.color}`} />
+                </div>
+                <p className="text-[17px] font-bold tracking-tight leading-none bg-clip-text truncate">
+                  {stat.value}
+                </p>
               </div>
-              <div>
-                <p className="text-xl font-bold tracking-tight">{stat.value}</p>
-                <p className="text-[11px] text-muted-foreground/50 font-medium mt-0.5">{stat.label}</p>
-              </div>
+              <p className="text-[9px] text-muted-foreground/30 font-bold uppercase tracking-[0.1em] pl-0.5 truncate leading-none">
+                {stat.label}
+              </p>
             </div>
           ))}
         </div>
@@ -104,15 +126,23 @@ export default function DashboardPage() {
         {/* Course List */}
         <div className="space-y-3">
           <div className="flex items-center justify-between px-1">
-            <h2 className="text-lg font-bold tracking-tight">Recent Courses</h2>
+            <h2 className="text-lg font-bold tracking-tight">Courses</h2>
             <Link href="/dashboard/courses">
               <Button variant="link" className="text-indigo-400 font-semibold hover:text-indigo-300 p-0 h-auto text-[13px]">
                 See All <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
               </Button>
             </Link>
           </div>
-          <CourseTable />
+          <CourseTable onCourseClick={setSelectedCourse} />
         </div>
+
+        {/* The Stats Drawer */}
+        <CourseStatsDrawer 
+          course={selectedCourse} 
+          score={activePerf?.score || 0}
+          totalQuestions={activePerf?.totalQuestions || 0}
+          onClose={() => setSelectedCourse(null)} 
+        />
       </div>
     );
   }

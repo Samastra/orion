@@ -210,7 +210,7 @@ export function MCQSession({ questions, onReset, courseId, suggestedTitle }: MCQ
   return (
     <div className="h-full flex flex-col bg-background">
       {/* Progress bar / Review header */}
-      <div className="shrink-0 px-5 pt-4 pb-2 border-b border-white/[0.04]">
+      <div className="shrink-0 px-5 pt-3 pb-1 border-b border-white/[0.04]">
         {isReviewing ? (
           <div className="flex items-center justify-between mb-4">
             <div className="flex flex-col">
@@ -266,7 +266,7 @@ export function MCQSession({ questions, onReset, courseId, suggestedTitle }: MCQ
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto px-5 py-4">
+      <div className="flex-1 overflow-auto px-5 py-2 lg:py-4">
         <MCQCard
           key={currentIndex}
           question={questions[currentIndex]}

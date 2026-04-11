@@ -476,7 +476,7 @@ function ResponsiveConfig({
             <span className="text-[10px] font-black text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">{config.count} items</span>
           </div>
           <div className="flex gap-2">
-            {[10, 20, 40, 100].map((num) => (
+            {[10, 20, 40, 60].map((num) => (
               <button
                 key={num}
                 onClick={() => onConfigChange({ ...config, count: num })}

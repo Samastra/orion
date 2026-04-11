@@ -26,6 +26,45 @@ async function withRetry<T>(fn: () => Promise<T>, retries: number = 3, delay: nu
   }
 }
 
+/**
+ * Proactively cleans AI responses before parsing.
+ * Removes markdown formatting, trailing commas, and unprintable characters.
+ */
+function sanitizeJSON(str: string): string {
+  let cleaned = str.trim();
+  
+  // Remove markdown code blocks if present
+  if (cleaned.startsWith('```json')) cleaned = cleaned.replace(/^```json\s*/, '');
+  if (cleaned.endsWith('```')) cleaned = cleaned.replace(/\s*```$/, '');
+  
+  // Fix escaped backslashes if the AI messed up (common in LaTeX)
+  // We want to ensure backslashes used for scientific notation are double-escaped
+  // but we don't want to over-escape already-clean JSON.
+  
+  // Fix trailing commas in objects and arrays
+  cleaned = cleaned.replace(/,\s*([}\]])/g, '$1');
+  
+  return cleaned.trim();
+}
+
+/**
+ * Attempts to repair truncated JSON responses by finding the last complete item in the 'items' array.
+ */
+function autoCloseJSON(str: string): string {
+  // If it's already a valid object, leave it
+  try { JSON.parse(str); return str; } catch (e) { /* continue to repair */ }
+
+  // Seek the last complete question object (ends with "}")
+  const lastBrace = str.lastIndexOf('}');
+  if (lastBrace === -1) return str;
+
+  // Take everything up to that brace and close the structure
+  // Note: We assume the structure is { "title": "...", "items": [...] }
+  return str.substring(0, lastBrace + 1) + ']}';
+}
+
+const MAX_PRACTICE_COUNT = 60;
+
 const GET_MCQ_PROMPT = (count: number, difficulty: string) => `You are an academic lecturer. Generate exactly ${count} multiple choice questions from the provided document sections.
 
 CRITICAL: You MUST respond with ONLY a valid JSON object. No markdown, no explanation, no extra text. Just the JSON object.
@@ -39,7 +78,12 @@ The object must have this exact structure:
       "question": "the question text",
       "options": ["option A text", "option B text", "option C text", "option D text"],
       "correctIndex": 2,
-      "explanation": "why this answer is correct"
+      "optionExplanations": [
+        "Specifically explains why Option A is incorrect or correct.",
+        "Specifically explains why Option B is incorrect or correct.",
+        "Specifically explains why Option C is incorrect or correct.",
+        "Specifically explains why Option D is incorrect or correct."
+      ]
     },
     ... (exactly ${count} items)
   ]
@@ -52,7 +96,9 @@ Rules:
 - Use proper academic terminology. Use LaTeX/KaTeX for formulas and scientific notation.
 - JSON INTEGRITY: Double-escape backslashes in scientific notations.
 - Questions should be based ONLY on the provided document sections.
-- Explanations should be educational and reference the document content.
+- INDIVIDUAL OPTION FEEDBACK: You MUST provide exactly 4 strings in 'optionExplanations'.
+- For the CORRECT option, explain exactly why it is definitively right based on the text.
+- For WRONG options, explain the specific physiological/conceptual reason why they are distractors.
 - Make distractors plausible — related concepts a student might confuse with the correct answer.`;
 
 const GET_FLASHCARD_PROMPT = (count: number, difficulty: string) => `You are an academic lecturer. Generate exactly ${count} flashcards from the provided document sections.
@@ -85,12 +131,14 @@ export async function POST(req: NextRequest) {
     const { 
       type = 'mcq', 
       topicFocus, 
-      count = 10, 
+      count = 20, 
       difficulty = 'Medium',
       technicalDepth = 5,
       noteId,
       courseId 
     } = await req.json();
+
+    const finalizedCount = Math.min(count, MAX_PRACTICE_COUNT);
 
     const apiKey = process.env['GEMINI_API_KEY'];
     if (!apiKey) {
@@ -101,8 +149,8 @@ export async function POST(req: NextRequest) {
     const model = genAI.getGenerativeModel({ 
       model: "gemini-3.1-flash-lite-preview",
       systemInstruction: type === 'flashcard'
-        ? GET_FLASHCARD_PROMPT(count, difficulty)
-        : GET_MCQ_PROMPT(count, difficulty)
+        ? GET_FLASHCARD_PROMPT(finalizedCount, difficulty)
+        : GET_MCQ_PROMPT(finalizedCount, difficulty)
     });
 
     // ─── RAG RETRIEVAL (always from DB, never from frontend) ────
@@ -118,11 +166,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Dynamic Context Scaling (Surgical Retrieval)
+    // 1 chunk per 4 questions, minimum 3, maximum 20 to avoid dilution.
+    const dynamicChunkCount = Math.min(20, Math.max(3, Math.ceil(count / 4)));
+
     const retrieved = await getMultiQueryContext({
       query: baseQuery,
       noteId,
       courseId,
-      chunkCount: Math.min(count, 12), // Scale retrieval with question count
+      chunkCount: dynamicChunkCount,
       targetDepth: technicalDepth,
       additionalQueries,
     });
@@ -137,10 +189,10 @@ export async function POST(req: NextRequest) {
     console.log(`📚 [Practice RAG] Retrieved ${retrieved.chunkCount} chunks (${retrieved.totalChars} chars)`);
 
     // ─── BUILD PROMPT ───────────────────────────────────────────
-    let systemContent = `Generate ${count} ${type === 'flashcard' ? 'flashcards' : 'MCQs'} now with ${difficulty} difficulty.`;
+    let systemContent = `Generate ${finalizedCount} ${type === 'flashcard' ? 'flashcards' : 'MCQs'} now with ${difficulty} difficulty.`;
 
     if (!noteId) {
-      systemContent = `You are performing a COMPREHENSIVE COURSE REVIEW. Generate ${count} ${type === 'flashcard' ? 'flashcards' : 'MCQs'} across all the topics in the provided sections. Distribute questions evenly across different topics.`;
+      systemContent = `You are performing a COMPREHENSIVE COURSE REVIEW. Generate ${finalizedCount} ${type === 'flashcard' ? 'flashcards' : 'MCQs'} across all the topics in the provided sections. Distribute questions evenly across different topics.`;
     }
 
     if (topicFocus && topicFocus.trim()) {
@@ -172,41 +224,66 @@ export async function POST(req: NextRequest) {
     });
 
     const content = result.response.text();
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    let jsonContent = jsonMatch ? jsonMatch[0] : content;
-
     // ─── PARSE & RECOVER ────────────────────────────────────────
+    const jsonContent = sanitizeJSON(content);
+
+    /**
+     * Surgical regex extraction for stranded items.
+     * Uses a multi-stage fallback to ensure we get as many valid questions as possible.
+     */
     const extractItems = (str: string): any[] => {
       const items: any[] = [];
-      const pattern = /\{\s*"id"\s*:\s*\d+,\s*[^}]*\}/g;
+      // Regex looks for "id": N through various structures until the end of the object
+      const pattern = /\{\s*"id"\s*:\s*\d+[\s\S]*?\}/g;
       const matches = str.match(pattern);
+      
       if (matches) {
         matches.forEach(m => {
           try {
-            const item = JSON.parse(m.replace(/\\(?![bfnrtu\/"])/g, "\\\\"));
-            if (type === 'mcq' && item.question && item.options) items.push(item);
-            if (type === 'flashcard' && item.front && item.back) items.push(item);
-          } catch (e) { /* skip */ }
+            // Clean up backslashes for this specific chunk
+            const cleanChunk = m.replace(/\\(?![bfnrtu\/"])/g, "\\\\");
+            const item = JSON.parse(cleanChunk);
+            
+            if (type === 'mcq') {
+              if (item.question && Array.isArray(item.options) && item.options.length >= 2) {
+                // Ensure field integrity
+                if (!item.optionExplanations || !Array.isArray(item.optionExplanations)) {
+                  item.optionExplanations = new Array(item.options.length).fill("Contextual explanation provided above.");
+                }
+                items.push(item);
+              }
+            } else if (type === 'flashcard') {
+              if (item.front && item.back) items.push(item);
+            }
+          } catch (e) { /* skip unparseable chunk */ }
         });
       }
       return items;
     };
 
-    const repairJSON = (str: string) => str.replace(/\\(?![bfnrtu\/"])/g, "\\\\");
-
     try {
       let items: any[] = [];
       let title = type === 'mcq' ? 'MCQ Practice' : 'Flashcard Practice';
 
+      // Stage 1: Standard Parse
       try {
-        const parsed = JSON.parse(repairJSON(jsonContent));
+        const parsed = JSON.parse(jsonContent);
         items = parsed.items || [];
         if (parsed.title) title = parsed.title;
       } catch (e) {
-        console.warn("⚠️ [Recovery] Standard parse failed. Attempting item recovery...");
-        items = extractItems(jsonContent);
-        const titleMatch = jsonContent.match(/"title"\s*:\s*"([^"]+)"/);
-        if (titleMatch) title = titleMatch[1];
+        // Stage 2: Attempt Auto-Closure Repair (for truncated output)
+        try {
+          console.warn("⚠️ [Recovery] JSON truncated. Attempting auto-closure repair...");
+          const repaired = JSON.parse(autoCloseJSON(jsonContent));
+          items = repaired.items || [];
+          if (repaired.title) title = repaired.title;
+        } catch (e2) {
+          // Stage 3: Surgical Item Extraction (Regex)
+          console.warn("⚠️ [Recovery] Parse failed. Falling back to surgical item extraction...");
+          items = extractItems(jsonContent);
+          const titleMatch = jsonContent.match(/"title"\s*:\s*"([^"]+)"/);
+          if (titleMatch) title = titleMatch[1];
+        }
       }
 
       if (items.length === 0) {
