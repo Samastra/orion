@@ -135,6 +135,18 @@ export default function CourseDetailPage() {
     if (result.data) {
       setNotes([result.data, ...notes]);
       setIsCreatingNote(false);
+      
+      // Proactive background indexing
+      fetch('/api/practice/index', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          noteId: result.data.id, 
+          courseId: id, 
+          content: formData.get('content'), 
+          force: true 
+        })
+      }).catch(err => console.error("Proactive indexing failed:", err));
     }
     setIsSubmittingNote(false);
   };
@@ -176,6 +188,19 @@ export default function CourseDetailPage() {
       const result = await createNote(formData);
       if (result.data) {
         setNotes([result.data, ...notes]);
+        
+        // Proactive background indexing
+        fetch('/api/practice/index', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            noteId: result.data.id, 
+            courseId: id, 
+            content: textContent, 
+            force: true 
+          })
+        }).catch(err => console.error("Proactive indexing failed:", err));
+        
       } else {
         alert("Failed to save the note to the database. Please check your connection.");
       }
@@ -264,7 +289,7 @@ export default function CourseDetailPage() {
                 type="file"
                 ref={fileInputRef}
                 onChange={handleFileUpload}
-                accept=".pdf,.docx,.pptx,*"
+                accept=".pdf,.docx,.pptx,.ppt,*"
                 className="hidden"
               />
               <Button

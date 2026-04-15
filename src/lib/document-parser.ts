@@ -92,22 +92,32 @@ export async function extractTextFromDOCX(file: File): Promise<string> {
  * Detects format by Binary Signature (Magic Numbers) and ZIP content.
  */
 export async function parseDocument(file: File): Promise<{ content: string | string[], type: string }> {
-  const buffer = await file.slice(0, 4).arrayBuffer();
+  // 1. Extract extension robustly
+  const fileName = file.name.trim();
+  const lastDotIndex = fileName.lastIndexOf('.');
+  const extension = lastDotIndex !== -1 
+    ? fileName.slice(lastDotIndex + 1).toLowerCase().trim() 
+    : '';
+
+  // 2. Sample the binary header (Magic Numbers)
+  const buffer = await file.slice(0, 8).arrayBuffer();
   const header = new Uint8Array(buffer);
   const hex = Array.from(header).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
 
-  // 1. Identify PDF
-  if (hex === '25504446') {
+  console.log('📄 [Parser] Inspecting:', { fileName, hex, extension });
+
+  // 3. Identify PDF (%PDF-)
+  if (hex.startsWith('25504446')) {
     return { content: await extractTextFromPDF(file), type: 'pdf' };
   }
 
-  // 2. Identify ZIP-based (Office Docs)
-  if (hex === '504B0304') {
+  // 4. Identify ZIP-based (MODERN Office Docs: .pptx, .docx)
+  if (hex.startsWith('504B0304')) {
     const JSZip = (await import('jszip')).default;
     const arrayBuffer = await file.arrayBuffer();
     const zip = await JSZip.loadAsync(arrayBuffer);
 
-    // Look for indicators inside the ZIP
+    // Look for indicators inside the ZIP folder structure
     const isPowerpoint = Object.keys(zip.files).some(name => name.startsWith('ppt/'));
     const isWord = Object.keys(zip.files).some(name => name.startsWith('word/'));
 
@@ -118,16 +128,35 @@ export async function parseDocument(file: File): Promise<{ content: string | str
       return { content: await extractTextFromDOCX(file), type: 'docx' };
     }
 
-    // Default fallback: Try PPTX extraction if unidentified
+    // Default fallback within ZIP: If unidentified but matches ZIP header, use extension clues
+    if (extension === 'pptx' || extension === 'ppt') return { content: await extractTextFromPPTX(file), type: 'pptx' };
+    if (extension === 'docx' || extension === 'doc') return { content: await extractTextFromDOCX(file), type: 'docx' };
+    
+    // Last resort fallback for ZIPs
     return { content: await extractTextFromPPTX(file), type: 'pptx' };
   }
 
-  // 3. Last chance: fallback to extension
-  const extension = file.name.split('.').pop()?.toLowerCase();
+  // 5. Identify LEGACY Office Binary (Magic Number: D0 CF 11 E0)
+  if (hex.startsWith('D0CF11E0')) {
+    throw new Error('This is a legacy binary format (.ppt or .doc). These older formats cannot be read directly by the browser. Please open the file in PowerPoint/Word and "Save As" a modern .pptx or .docx file.');
+  }
+
+  // 6. Last chance: Fallback strictly to extension if signature was non-standard
   switch (extension) {
     case 'pdf': return { content: await extractTextFromPDF(file), type: 'pdf' };
     case 'docx': return { content: await extractTextFromDOCX(file), type: 'docx' };
-    case 'pptx': return { content: await extractTextFromPPTX(file), type: 'pptx' };
-    default: throw new Error('Unrecognized document signature or extension');
+    case 'pptx': 
+    case 'ppt': 
+      // Some institutions rename files weirdly; if it says it's powerpoint, try the zip extractor
+      try {
+        return { content: await extractTextFromPPTX(file), type: 'pptx' };
+      } catch (e) {
+        throw new Error(`The file claims to be a PowerPoint (.${extension}), but it uses an older binary format. Please convert it to .pptx for full compatibility.`);
+      }
+    case 'doc': 
+      throw new Error(`The .doc format (legacy) is not directly supported. Please convert it to .docx.`);
+    default: 
+      console.warn('🛑 [Parser] Unrecognized format:', { hex, extension, fileName });
+      throw new Error(`Unrecognized document format (detected: .${extension || 'unknown'}). Please upload a modern PDF, DOCX, or PPTX file.`);
   }
 }

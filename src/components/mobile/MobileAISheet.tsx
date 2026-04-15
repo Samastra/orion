@@ -32,9 +32,9 @@ interface MobileAISheetProps {
 function AIMessageBubble({ message }: { message: Message }) {
   if (message.role === 'user') {
     return (
-      <div className="flex justify-end">
-        <div className="bg-indigo-600/20 border border-indigo-500/20 rounded-2xl rounded-br-sm px-4 py-2.5 max-w-[85%]">
-          <p className="text-[13px] text-foreground/85 font-medium leading-relaxed">{message.content}</p>
+      <div className="flex flex-col items-end gap-1.5">
+        <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%] shadow-sm">
+          <p className="text-[13px] text-white/90 font-medium leading-relaxed">{message.content}</p>
         </div>
       </div>
     );
@@ -44,13 +44,22 @@ function AIMessageBubble({ message }: { message: Message }) {
     <div className="prose prose-invert prose-sm max-w-none
       [&_p]:text-[13px] [&_p]:leading-[1.8] [&_p]:text-white/70 [&_p]:mb-3
       [&_strong]:text-white [&_strong]:font-semibold
-      [&_h2]:text-[14px] [&_h2]:font-bold [&_h2]:text-indigo-400/80 [&_h2]:mt-4 [&_h2]:mb-2
-      [&_h3]:text-[13px] [&_h3]:font-bold [&_h3]:text-white/85 [&_h3]:mt-3
+      [&_em]:text-white/60 [&_em]:italic
+      [&_h2]:text-[14px] [&_h2]:font-bold [&_h2]:text-indigo-400/80 [&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:border-b [&_h2]:border-white/5 [&_h2]:pb-1.5
+      [&_h3]:text-[13px] [&_h3]:font-bold [&_h3]:text-white/85 [&_h3]:mt-3 [&_h3]:mb-1.5
       [&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5 [&_li]:text-[13px] [&_li]:leading-[1.7] [&_li]:text-white/70
+      [&_li_strong]:text-indigo-300
+      [&_blockquote]:border-l-3 [&_blockquote]:border-indigo-500/40 [&_blockquote]:bg-indigo-500/5 [&_blockquote]:py-2 [&_blockquote]:px-3 [&_blockquote]:rounded-r-lg [&_blockquote]:italic [&_blockquote]:text-white/50 [&_blockquote]:my-3
       [&_code]:bg-white/[0.08] [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[11px] [&_code]:font-mono [&_code]:text-indigo-300
-      [&_table]:w-full [&_table]:text-[11px] [&_table]:border-collapse [&_table]:my-3
-      [&_th]:text-left [&_th]:text-[10px] [&_th]:font-bold [&_th]:text-muted-foreground/50 [&_th]:uppercase [&_th]:px-2 [&_th]:py-1.5 [&_th]:border-b [&_th]:border-white/[0.08]
-      [&_td]:px-2 [&_td]:py-1.5 [&_td]:border-b [&_td]:border-white/[0.04] [&_td]:text-foreground/65
+      [&_pre]:bg-white/[0.04] [&_pre]:border [&_pre]:border-white/[0.06] [&_pre]:rounded-lg [&_pre]:p-3 [&_pre]:my-3 [&_pre]:overflow-x-auto
+      [&_pre_code]:bg-transparent [&_pre_code]:p-0
+      [&_table]:w-full [&_table]:text-[11px] [&_table]:border-collapse [&_table]:my-4 [&_table]:border [&_table]:border-white/[0.06] [&_table]:rounded-lg [&_table]:overflow-hidden
+      [&_thead]:bg-white/[0.05]
+      [&_th]:text-left [&_th]:text-[10px] [&_th]:font-bold [&_th]:text-indigo-400/70 [&_th]:uppercase [&_th]:tracking-wider [&_th]:px-3 [&_th]:py-2 [&_th]:border-b [&_th]:border-white/[0.08]
+      [&_td]:px-3 [&_td]:py-2 [&_td]:border-b [&_td]:border-white/[0.04] [&_td]:text-foreground/65
+      [&_tr:last-child_td]:border-b-0
+      [&_hr]:border-white/[0.06] [&_hr]:my-4
+      [&_a]:text-indigo-400 [&_a]:underline
       [&_.katex]:text-[13px]
     ">
       <ReactMarkdown remarkPlugins={[remarkMath, remarkGfm]} rehypePlugins={[rehypeKatex]}>{message.content}</ReactMarkdown>
@@ -214,7 +223,7 @@ export function MobileAISheet({
       const res = await fetch('/api/practice/index', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noteId, force: true })
+        body: JSON.stringify({ noteId, courseId, force: true })
       });
       if (res.ok) {
         setIsIndexed(true);
@@ -264,8 +273,26 @@ export function MobileAISheet({
         throw new Error(err.error || 'API error');
       }
 
-      const data = await res.json();
-      setMessages((prev) => [...prev, { role: 'ai', content: data.content }]);
+      // Stream the response — add an empty AI message and fill it incrementally
+      const aiMsg: Message = { role: 'ai', content: '' };
+      setMessages(prev => [...prev, aiMsg]);
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        let accumulated = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          accumulated += decoder.decode(value, { stream: true });
+          setMessages(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1] = { ...updated[updated.length - 1], content: accumulated };
+            return updated;
+          });
+        }
+      }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         setMessages((prev) => [...prev, { role: 'ai', content: `⚠️ ${err.message || 'Could not reach the AI. Try again.'}` }]);

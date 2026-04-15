@@ -180,9 +180,11 @@ export async function POST(req: NextRequest) {
     });
 
     if (!retrieved.text) {
-      console.warn(`🛑 [Practice API] Retrieval returned 0 content for Note:${noteId || 'all'} Course:${courseId || 'all'}. Either the table is empty or RLS is blocking the query.`);
+      console.warn(`🛑 [Practice API] Retrieval returned 0 content for Note:${noteId || 'all'} Course:${courseId || 'all'}.`);
       return NextResponse.json({ 
-        error: 'No indexed content found. Please ensure the document has been indexed first.' 
+        error: topicFocus 
+          ? `Could not find any content in this document related to your focus topic: "${topicFocus}". Try a broader topic or check your spelling.`
+          : 'Could not retrieve content for this document. It may need to be re-indexed, or it might be completely empty.' 
       }, { status: 422 });
     }
 

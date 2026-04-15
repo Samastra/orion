@@ -106,7 +106,7 @@ export const ChatInterface = React.forwardRef<
       const res = await fetch('/api/practice/index', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ noteId, force: true })
+        body: JSON.stringify({ noteId, courseId, force: true })
       });
       if (res.ok) {
         setIsIndexed(true);
@@ -146,8 +146,27 @@ export const ChatInterface = React.forwardRef<
         const err = await res.json();
         throw new Error(err.error || `API error: ${res.status}`);
       }
-      const data = await res.json();
-      setMessages(prev => [...prev, { role: 'ai', content: data.content, timestamp: ts() }]);
+
+      // Stream the response — add an empty AI message and fill it incrementally
+      const aiMsg: Message = { role: 'ai', content: '', timestamp: ts() };
+      setMessages(prev => [...prev, aiMsg]);
+
+      const reader = res.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (reader) {
+        let accumulated = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          accumulated += decoder.decode(value, { stream: true });
+          setMessages(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1] = { ...updated[updated.length - 1], content: accumulated };
+            return updated;
+          });
+        }
+      }
     } catch (error: any) {
       if (error.name === 'AbortError') return;
       setMessages(prev => [...prev, { role: 'ai', content: `⚠️ ${error.message || 'The tutor is disconnected. Retrying...'}`, timestamp: ts() }]);

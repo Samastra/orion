@@ -23,48 +23,55 @@ export async function POST(req: NextRequest) {
     
     const userId = user.id;
 
-    // Check cache (skip re-indexing unless forced)
-    if (!force) {
-      const status = await checkIfIndexed(courseId, noteId);
-      
-      if (status.indexed) {
-        console.log(`📡 [Cache] Already indexed for ${noteId ? "Note" : "Course"}. Skipping.`);
-        return NextResponse.json({ 
-          success: true, 
-          message: "Already indexed.", 
-          alreadyIndexed: true
-        });
+    // SCENARIO 1: We are indexing a SPECIFIC note
+    if (noteId) {
+      if (!force) {
+        const { indexed } = await checkIfIndexed(undefined, noteId);
+        if (indexed) {
+          console.log(`📡 [Cache] Note ${noteId} already indexed. Skipping.`);
+          return NextResponse.json({ success: true, alreadyIndexed: true });
+        }
       }
+
+      let indexingContent = content;
+      if (!indexingContent) {
+        const { data: note, error: fetchError } = await supabase
+          .from('notes')
+          .select('content')
+          .eq('id', noteId)
+          .single();
+        if (fetchError || !note) return NextResponse.json({ error: "Note not found" }, { status: 404 });
+        indexingContent = note.content;
+      }
+
+      const result = await indexDocument(indexingContent, noteId, courseId, userId);
+      return NextResponse.json({ success: true, chunksCount: result.chunksCount });
     }
 
-    let indexingContent = content;
-
-    // AUTO-FETCH CONTENT: If missing, grab from DB
-    if (!indexingContent && noteId) {
-      console.log(`📡 [Indexer] No content provided. Fetching from DB for note: ${noteId}`);
-      const { data: note, error: fetchError } = await supabase
+    // SCENARIO 2: We are syncing a whole COURSE
+    if (courseId && !noteId) {
+      console.log(`📡 [Indexer] Syncing course: ${courseId}`);
+      const { data: notes, error: fetchError } = await supabase
         .from('notes')
-        .select('content')
-        .eq('id', noteId)
-        .single();
+        .select('id, content')
+        .eq('course_id', courseId);
+
+      if (fetchError || !notes) return NextResponse.json({ error: "Could not fetch course notes" }, { status: 500 });
       
-      if (fetchError || !note) {
-        return NextResponse.json({ error: "Could not find note content in database." }, { status: 404 });
+      let totalChunks = 0;
+      for (const note of notes) {
+        const { indexed } = await checkIfIndexed(undefined, note.id);
+        if (!indexed || force) {
+          console.log(`📡 [Indexer] Missing embeddings for note ${note.id}. Processing...`);
+          const res = await indexDocument(note.content, note.id, courseId, userId);
+          totalChunks += res.chunksCount;
+        }
       }
-      indexingContent = note.content;
+
+      return NextResponse.json({ success: true, chunksCount: totalChunks, notesProcessed: notes.length });
     }
 
-    if (!indexingContent) {
-      return NextResponse.json({ error: "Content is required for indexing." }, { status: 400 });
-    }
-
-    const result = await indexDocument(indexingContent, noteId, courseId, userId);
-
-    return NextResponse.json({ 
-      success: true, 
-      message: "Indexing complete.", 
-      chunksCount: result.chunksCount 
-    });
+    return NextResponse.json({ error: "Invalid parameters" }, { status: 400 });
   } catch (error) {
     console.error("Indexing API error:", error);
     return NextResponse.json({ 
@@ -81,5 +88,5 @@ export async function GET(req: NextRequest) {
   if (!noteId) return NextResponse.json({ error: "noteId required" }, { status: 400 });
 
   const status = await checkIfIndexed(undefined, noteId);
-  return NextResponse.json({ isIndexed: status.indexed });
+  return NextResponse.json({ indexed: status.indexed });
 }

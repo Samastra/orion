@@ -19,17 +19,24 @@ const EMBEDDING_MODEL = "gemini-embedding-001";
 const EMBEDDING_DIMENSIONS = 768;
 const BATCH_SIZE = 20;
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-function sanitizeId(id?: string): string | undefined {
-  if (!id) return undefined;
-  const clean = id.trim().toLowerCase();
-  // If it's 36 chars but has an extra char at the start/end, try to fix it
-  if (clean.length > 36) {
-    const match = clean.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/);
-    if (match) return match[0];
+/**
+ * Robustly extracts a valid 36-character UUID from a potentially malformed string.
+ * This handles cases where IDs might have trailing spaces, extra digits, or 
+ * unintentional prefixes/suffixes from the frontend or URL params.
+ */
+export function sanitizeId(id: any): string | null {
+  if (!id || typeof id !== 'string') return null;
+  const trimmed = id.trim();
+  // Look for a 36-char UUID pattern with word boundaries to avoid partial matches on mangled hex
+  const match = trimmed.match(/\b([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\b/i);
+  if (!match) {
+    console.error(`🚨 [sanitizeId] REJECTED malformed ID: "${trimmed}" (length: ${trimmed.length}). Expected a valid 36-char UUID.`);
+    return null;
   }
-  return clean;
+  if (match[1] !== trimmed) {
+    console.warn(`⚠️ [sanitizeId] Cleaned ID: "${trimmed}" → "${match[1]}"`);
+  }
+  return match[1];
 }
 
 // ─── Retry Utility ──────────────────────────────────────────────
@@ -58,7 +65,7 @@ export async function indexDocument(
   userId?: string
 ) {
   const sNoteId = sanitizeId(noteId);
-  const sCourseId = sanitizeId(courseId);
+  let sCourseId = sanitizeId(courseId);
 
   if (!userId) {
     throw new Error("User authentication is required for indexing. Please log in again.");
@@ -67,12 +74,28 @@ export async function indexDocument(
   if (!apiKey) throw new Error("GEMINI_API_KEY is not set.");
 
   const supabase = await createClient();
+
+  // AUTO-RESOLVE: If we have a noteId but no courseId, look it up from the notes table.
+  // This prevents the critical bug where sections are stored with course_id=NULL,
+  // which causes the RPC search to silently filter them out.
+  if (sNoteId && !sCourseId) {
+    const { data: noteRow } = await supabase
+      .from('notes')
+      .select('course_id')
+      .eq('id', sNoteId)
+      .single();
+    if (noteRow?.course_id) {
+      sCourseId = noteRow.course_id;
+      console.log(`📡 [Indexer] Auto-resolved course_id: ${sCourseId} from note ${sNoteId}`);
+    }
+  }
+
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: EMBEDDING_MODEL });
 
   // Smart chunking (semantic boundaries)
   const chunks = smartChunk(content);
-  console.log(`📡 [Indexer] Document split into ${chunks.length} semantic chunks.`);
+  console.log(`📡 [Indexer] ID:${sNoteId || sCourseId} | course_id:${sCourseId || 'NULL'} | user_id:${userId?.slice(0,8)}... | Document split into ${chunks.length} semantic chunks.`);
 
   // Clear existing chunks for this note
   if (sNoteId) {
@@ -145,6 +168,19 @@ export async function searchContent(
   const sNoteId = sanitizeId(noteId);
   const sCourseId = sanitizeId(courseId);
 
+  // GUARD: If a noteId was provided but sanitization rejected it, fail fast
+  // instead of silently falling through to an unfiltered (and useless) search.
+  if (noteId && !sNoteId) {
+    console.error(`🚨 [searchContent] noteId was provided ("${noteId}") but sanitizeId rejected it. Aborting search — this note cannot be found with a corrupted ID.`);
+    return null;
+  }
+  if (courseId && !sCourseId) {
+    console.error(`🚨 [searchContent] courseId was provided ("${courseId}") but sanitizeId rejected it. Aborting search.`);
+    return null;
+  }
+
+  console.log(`🔍 [searchContent] Searching with noteId: ${sNoteId || 'null'}, courseId: ${sCourseId || 'null'}`);
+
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return null;
 
@@ -168,12 +204,14 @@ export async function searchContent(
     return await courseWideSearch(supabase, queryEmbedding, sCourseId, count, targetDepth);
   }
 
-  // 3. Standard search (specific note or general)
+  // 3. Standard search — when note_id is specific, DON'T also filter by course_id.
+  //    The double-filter caused 100% retrieval failures when sections had course_id=NULL.
+  //    note_id is already unique enough; course_id is only needed for course-wide searches above.
   const { data, error } = await supabase.rpc('match_document_sections', {
     query_embedding: queryEmbedding,
     match_threshold: 0.1,
-    match_count: count * 2, // Fetch extra for ranking
-    p_course_id: sCourseId || null,
+    match_count: count * 2,
+    p_course_id: sNoteId ? null : (sCourseId || null),  // Only filter by course when no specific note
     p_note_id: sNoteId || null
   });
 
@@ -183,7 +221,7 @@ export async function searchContent(
   }
 
   if (!data || data.length === 0) {
-    console.warn(`⚠️ [Embeddings] 0 sections found for search (Note: ${sNoteId || 'all'}, Course: ${sCourseId || 'all'}). Verify data exists and RLS user_id is assigned.`);
+    console.warn(`⚠️ [Embeddings] 0 sections found (Note: ${sNoteId || 'all'}, Course: ${sCourseId || 'all'}). The note may not be indexed or user_id mismatch.`);
     return null;
   }
 
@@ -269,14 +307,20 @@ async function courseWideSearch(
  * Check if a note or course is already indexed.
  */
 export async function checkIfIndexed(courseId?: string, noteId?: string) {
+  const sNoteId = sanitizeId(noteId);
+  const sCourseId = sanitizeId(courseId);
+  
   const supabase = await createClient();
+  let query = supabase.from('document_sections').select('id');
 
-  let query = supabase.from('document_sections').select('id').limit(1);
-
-  if (noteId) {
-    query = query.eq('note_id', noteId);
-  } else if (courseId) {
-    query = query.eq('course_id', courseId);
+  // If checking at the course level, we only say it's indexed if we have a substantial number of chunks.
+  // This is a heuristic to prevent skipping when only 1 note out of 10 is indexed.
+  if (sNoteId) {
+    query = query.eq('note_id', sNoteId);
+  } else if (sCourseId) {
+    // For courses, we only say "indexed" if there's at least one chunk.
+    // The API route now handles the deep per-note scanning.
+    query = query.eq('course_id', sCourseId);
   } else {
     return { indexed: false };
   }
