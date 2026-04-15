@@ -33,7 +33,7 @@ export default function SignupPage() {
           <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-500/20">
             <GraduationCap className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-foreground">Join <span className="text-indigo-400">StudyBuddy</span></h1>
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">Join <span className="text-indigo-400">Dobby AI</span></h1>
           <p className="text-muted-foreground text-lg leading-relaxed">
             Create your account and start studying smarter. Upload your course materials and let AI help you ace every exam.
           </p>
@@ -55,12 +55,12 @@ export default function SignupPage() {
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
               <GraduationCap className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold">StudyBuddy</span>
+            <span className="text-xl font-bold">Dobby AI</span>
           </div>
 
           <div className="space-y-2">
             <h2 className="text-2xl font-bold tracking-tight">Create account</h2>
-            <p className="text-muted-foreground text-sm">Fill in your details to get started with StudyBuddy.</p>
+            <p className="text-muted-foreground text-sm">Fill in your details to get started with Dobby AI.</p>
           </div>
 
           {error && (

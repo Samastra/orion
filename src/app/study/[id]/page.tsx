@@ -295,7 +295,7 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
               <Home className="w-4 h-4" />
             </Button>
           </Link>
-          <span className="text-sm font-bold tracking-tight text-foreground/90 ml-1">StudyBuddy</span>
+          <span className="text-sm font-bold tracking-tight text-foreground/90 ml-1">Dobby AI</span>
           <div className="w-px h-4 bg-white/[0.06]" />
 
           {selectedCourse && (

@@ -33,7 +33,7 @@ export default function LoginPage() {
           <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-500/20">
             <GraduationCap className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-4xl font-bold tracking-tight text-foreground">Welcome back to <span className="text-indigo-400">StudyBuddy</span></h1>
+          <h1 className="text-4xl font-bold tracking-tight text-foreground">Welcome back to <span className="text-indigo-400">Dobby AI</span></h1>
           <p className="text-muted-foreground text-lg leading-relaxed">
             Your AI-powered study companion. Upload documents, practice with MCQs and flashcards, and master your material.
           </p>
@@ -55,7 +55,7 @@ export default function LoginPage() {
             <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
               <GraduationCap className="w-6 h-6 text-white" />
             </div>
-            <span className="text-xl font-bold">StudyBuddy</span>
+            <span className="text-xl font-bold">Dobby AI</span>
           </div>
 
           <div className="space-y-2">

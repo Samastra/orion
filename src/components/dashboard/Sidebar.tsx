@@ -59,7 +59,7 @@ export function Sidebar() {
         <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center border border-indigo-500/20">
           <GraduationCap className="text-white w-5 h-5" />
         </div>
-        <span className="text-lg font-bold tracking-tight">StudyBuddy</span>
+        <span className="text-lg font-bold tracking-tight">Dobby AI</span>
       </div>
 
       <div className="px-4 mb-4">

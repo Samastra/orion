@@ -2,153 +2,174 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, MessageSquare, Brain, GraduationCap, Upload, MoveRight, LayoutDashboard, Target, Users, Settings } from 'lucide-react';
+import { GraduationCap, MoveRight } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
+import { DashboardPreview } from "@/components/landing/DashboardPreview";
 
+// ─── Floating Program Labels (faded, atmospheric like Tradzio) ──
+function FloatingLabel({
+  label,
+  className,
+  delay = 0,
+}: {
+  label: string;
+  className: string;
+  delay?: number;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 1.2, delay: 0.5 + delay }}
+      className={`absolute hidden lg:block ${className}`}
+    >
+      <span className="text-[14px] font-medium text-white/[0.1] tracking-wide">{label}</span>
+    </motion.div>
+  );
+}
+
+// ─── Dot Grid Background ────────────────────────────────────────
+function DotGrid() {
+  return (
+    <div className="absolute inset-0 -z-10 overflow-hidden">
+      <svg className="absolute inset-0 w-full h-full opacity-[0.03]">
+        <defs>
+          <pattern id="dot-grid" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="0.8" fill="currentColor" className="text-white" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#dot-grid)" />
+      </svg>
+
+      {/* Subtle glows */}
+      <div className="absolute top-[10%] left-1/2 -translate-x-1/2 w-[700px] h-[500px] bg-indigo-600/[0.07] blur-[160px] rounded-full" />
+      <div className="absolute top-[25%] right-[20%] w-[250px] h-[250px] bg-violet-600/[0.05] blur-[130px] rounded-full" />
+      <div className="absolute top-[30%] left-[15%] w-[200px] h-[200px] bg-indigo-500/[0.04] blur-[100px] rounded-full" />
+    </div>
+  );
+}
+
+// ─── Main Page ─────────────────────────────────────────────────
 export default function LandingPage() {
-  const features = [
-    {
-      icon: <BookOpen className="w-6 h-6 text-indigo-400" />,
-      title: "Universal Reader",
-      description: "Seamlessly read PDF, PPTX, and Word documents with a high-fidelity viewing experience."
-    },
-    {
-      icon: <MessageSquare className="w-6 h-6 text-violet-400" />,
-      title: "Contextual AI Chat",
-      description: "Chat with an AI that understands the specific page and context you are currently studying."
-    },
-    {
-      icon: <Brain className="w-6 h-6 text-rose-400" />,
-      title: "Smart Quizzes",
-      description: "Instantly generate flashcards and multiple-choice questions from your course materials."
-    }
-  ];
-
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-indigo-500/30 overflow-x-hidden">
-      {/* Dynamic Background */}
-      <div className="fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[800px] gradient-bg opacity-50" />
-        <div className="absolute top-[10%] left-[10%] w-[400px] h-[400px] bg-indigo-600/10 blur-[120px] rounded-full" />
-        <div className="absolute bottom-[20%] right-[10%] w-[300px] h-[300px] bg-violet-600/10 blur-[100px] rounded-full" />
-      </div>
+      <DotGrid />
 
-      {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 border-b border-foreground/5 bg-background/50 backdrop-blur-xl">
-        <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center border border-indigo-500/20">
-                <GraduationCap className="text-white w-7 h-7" />
-              </div>
-              <span className="text-2xl font-bold tracking-tight">StudyBuddy</span>
+      {/* ─── Navigation (no border, clean) ───────────────────── */}
+      <nav className="fixed top-3 w-full z-50">
+        <div className="max-w-[1400px] mx-auto px-4">
+        <div className="bg-background/70 backdrop-blur-xl rounded-2xl border border-white/[0.04]">
+        <div className="px-6 h-13 flex items-center justify-between">
+          {/* Logo */}
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center border border-indigo-500/30">
+              <GraduationCap className="text-white w-4 h-4" />
             </div>
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
-            <Link href="#features" className="hover:text-foreground transition-colors">Features</Link>
-            <Link href="#courses" className="hover:text-foreground transition-colors">Courses</Link>
-            <Link href="/login">
-              <Button variant="outline" className="rounded-full px-6 bg-white text-black hover:bg-neutral-200 border-none font-bold">
-                Get Started
-              </Button>
-            </Link>
+            <span className="text-[14px] font-bold tracking-tight">Dobby AI</span>
+          </Link>
+
+          {/* Nav links — plain text, well spaced */}
+          <div className="hidden md:flex items-center gap-8">
+            {['Home', 'Features', 'Pricing'].map((item) => (
+              <Link
+                key={item}
+                href={item === 'Home' ? '/' : `#${item.toLowerCase()}`}
+                className={`text-[13px] font-medium transition-colors ${
+                  item === 'Home'
+                    ? 'text-white/90'
+                    : 'text-muted-foreground/40 hover:text-white/70'
+                }`}
+              >
+                {item}
+              </Link>
+            ))}
           </div>
+
+          {/* Login button — matches app style */}
+          <Link href="/login">
+            <Button className="h-9 px-5 bg-indigo-600 text-white hover:bg-indigo-500 rounded-xl font-semibold text-[12px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none">
+              Login
+            </Button>
+          </Link>
+        </div>
+        </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <main className="pt-32 pb-20 px-6">
-        <div className="max-w-7xl mx-auto">
+      {/* ─── Hero Section ───────────────────────────────────── */}
+      <main className="pt-28 pb-8 px-6">
+        <div className="max-w-6xl mx-auto">
           <div className="relative">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
+            {/* Faded program labels — near edges, scattered */}
+            <FloatingLabel label="Pharmacy" className="top-2 left-0" delay={0} />
+            <FloatingLabel label="Mech. Engineering" className="top-20 right-0" delay={0.3} />
+            <FloatingLabel label="MBBS" className="top-52 left-[1%]" delay={0.6} />
+            <FloatingLabel label="Biochemistry" className="top-48 right-0" delay={0.9} />
+
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="text-center space-y-8"
+              transition={{ duration: 0.5 }}
+              className="text-center space-y-5 max-w-3xl mx-auto"
             >
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-indigo-300">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+              {/* Headline */}
+              <h1 className="text-4xl sm:text-5xl md:text-[3.5rem] font-bold tracking-tight leading-[1.1]">
+                Study Smarter. Ace Exams.
+                <br />
+                <span className="bg-gradient-to-b from-white to-white/30 bg-clip-text text-transparent">
+                  And Still Have Fun.
                 </span>
-                New: AI Flashcard Generator
-              </div>
-              
-              <h1 className="text-6xl md:text-8xl font-bold tracking-tight leading-[1.1]">
-                Master your courses <br />
-                <span className="gradient-text">with AI intelligence.</span>
               </h1>
-              
-              <p className="max-w-2xl mx-auto text-lg md:text-xl text-muted-foreground leading-relaxed">
-                The all-in-one study companion that reads your documents, answers your questions, and tests your knowledge. Built for the modern student.
+
+              {/* Subtitle */}
+              <p className="max-w-xl mx-auto text-[14px] sm:text-[15px] text-muted-foreground/50 leading-relaxed">
+                Dobby is your personal AI study assistant — it reads your notes, teaches you the hard stuff, and quizzes you until you&apos;re ready.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-                <Link href="/login" className="w-full sm:w-auto">
-                  <Button size="lg" className="w-full h-14 px-10 bg-indigo-600 text-white hover:bg-indigo-500 rounded-2xl font-bold gap-2 text-lg shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none group">
-                    Try it now
-                    <MoveRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              {/* Single CTA */}
+              <div className="pt-1">
+                <Link href="/login">
+                  <Button className="h-11 px-8 bg-indigo-600 text-white hover:bg-indigo-500 rounded-xl font-bold gap-2 text-[13px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2)] border border-indigo-700/50 transition-all hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none group">
+                    Get Started Free
+                    <MoveRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
-                <Button size="lg" variant="outline" className="w-full sm:w-auto h-14 px-10 glass hover:bg-white/10 rounded-2xl font-bold text-lg border-white/10 shadow-[inset_0_1px_0_0_rgba(255,255,255,0.1)] hover:translate-y-[-1px] active:translate-y-[0px] active:shadow-none transition-all">
-                  View Demo
-                </Button>
               </div>
             </motion.div>
 
-            {/* Feature Grid */}
-            <section id="features" className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-32">
-              {features.map((feature, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="p-8 rounded-[32px] glass hover:bg-white/5 transition-all group border border-white/5"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                    {feature.icon}
-                  </div>
-                  <h3 className="text-xl font-bold mb-3">{feature.title}</h3>
-                  <p className="text-muted-foreground leading-relaxed">
-                    {feature.description}
-                  </p>
-                </motion.div>
-              ))}
-            </section>
-
-            {/* Upload Teaser */}
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.95 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              className="mt-32 p-12 rounded-[40px] bg-indigo-500/5 border border-indigo-500/10 text-center space-y-6 relative overflow-hidden"
+            {/* ─── Dashboard Preview ───────────────────────── */}
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.7, delay: 0.3, ease: "easeOut" }}
+              className="mt-16 max-w-5xl mx-auto relative"
             >
-              <div className="absolute inset-0 bg-gradient-to-b from-indigo-600/5 to-transparent pointer-events-none" />
-              <div className="w-20 h-20 bg-indigo-600/20 rounded-3xl flex items-center justify-center mx-auto mb-8 relative">
-                <Upload className="text-indigo-400 w-10 h-10" />
+              {/* Glow underneath */}
+              <div className="absolute -inset-8 bg-indigo-600/[0.06] blur-[80px] rounded-3xl -z-10" />
+              <div className="absolute -inset-4 bg-violet-600/[0.03] blur-[60px] rounded-3xl -z-10" />
+
+              {/* Dashboard */}
+              <div className="rounded-xl overflow-hidden border border-white/[0.08] shadow-[0_20px_80px_-20px_rgba(99,102,241,0.15)]">
+                <DashboardPreview />
               </div>
-              <h2 className="text-4xl font-bold relative">Ready to start studying?</h2>
-              <p className="text-muted-foreground max-w-xl mx-auto relative">
-                Connect your Google Drive or upload your course materials (PDF, PPTX, DOCX) to begin your interactive learning journey.
-              </p>
-              <Button size="lg" className="mt-4 px-10 h-14 bg-white text-black hover:bg-neutral-200 rounded-2xl font-bold relative">
-                Drop your files here
-              </Button>
+
+              {/* Fade to background at bottom */}
+              <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />
             </motion.div>
           </div>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/5 py-12 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2 opacity-50">
-            <GraduationCap className="w-5 h-5" />
-            <span className="text-sm font-bold tracking-tight">StudyBuddy</span>
+      {/* ─── Footer ─────────────────────────────────────────── */}
+      <footer className="border-t border-white/[0.04] py-8 px-6 mt-16">
+        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2 opacity-35">
+            <GraduationCap className="w-3.5 h-3.5" />
+            <span className="text-[12px] font-bold tracking-tight">Dobby AI</span>
           </div>
-          <p className="text-sm text-muted-foreground">
-            © 2026 StudyBuddy AI. Premium learning for a modern world.
+          <p className="text-[12px] text-muted-foreground/30">
+            © 2026 Dobby AI. Built for students who want more from their study time.
           </p>
         </div>
       </footer>

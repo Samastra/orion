@@ -25,7 +25,7 @@ export function MobileHeader({ onAvatarTap }: MobileHeaderProps) {
     if (pathname === '/dashboard/practice') return { title: 'Arena', subtitle: 'Practice & Study' };
     if (pathname === '/dashboard/courses') return { title: 'Courses', subtitle: 'Your Library' };
     if (pathname.startsWith('/dashboard/courses/')) return { title: 'Course Detail', subtitle: '' };
-    return { title: 'StudyBuddy', subtitle: '' };
+    return { title: 'Dobby AI', subtitle: '' };
   };
 
   const { title, subtitle } = getPageMeta();

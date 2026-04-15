@@ -22,12 +22,12 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "StudyBuddy — AI-Powered Study Platform",
-  description: "Your intelligent study companion. Upload documents, get AI explanations, and master any subject.",
+  title: "Dobby AI — Your AI Study Partner",
+  description: "Study smarter, ace exams, and still have fun. Dobby is your personal AI study assistant.",
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'StudyBuddy',
+    title: 'Dobby AI',
   },
 };
 
