@@ -204,3 +204,9 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* Orbit animation for competitor logos */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

@@ -6,6 +6,9 @@ import { GraduationCap, MoveRight } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { DashboardPreview } from "@/components/landing/DashboardPreview";
+import { CompetitorsSection } from "@/components/landing/CompetitorsSection";
+import { CoursesSection } from "@/components/landing/CoursesSection";
+import { PracticeSection } from "@/components/landing/PracticeSection";
 
 // ─── Floating Program Labels (faded, atmospheric like Tradzio) ──
 function FloatingLabel({
@@ -160,6 +163,15 @@ export default function LandingPage() {
           </div>
         </div>
       </main>
+
+      {/* ─── Competitors Section ─────────────────────────────── */}
+      <CompetitorsSection />
+
+      {/* ─── Courses Section ───────────────────────────────── */}
+      <CoursesSection />
+
+      {/* ─── Practice Section ──────────────────────────────── */}
+      <PracticeSection />
 
       {/* ─── Footer ─────────────────────────────────────────── */}
       <footer className="border-t border-white/[0.04] py-8 px-6 mt-16">
