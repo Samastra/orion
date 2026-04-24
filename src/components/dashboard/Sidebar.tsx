@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { 
   LayoutDashboard, 
@@ -56,10 +57,21 @@ export function Sidebar() {
   return (
     <div className="w-64 h-screen border-r border-white/5 bg-background hidden lg:flex flex-col fixed left-0 top-0">
       <div className="p-6 flex items-center gap-3">
-        <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center border border-indigo-500/20">
-          <GraduationCap className="text-white w-5 h-5" />
-        </div>
-        <span className="text-lg font-bold tracking-tight">Dobby AI</span>
+        <Image 
+          src="/dobbyvisuals/icon app.png" 
+          alt="" 
+          width={28} 
+          height={28} 
+          className="w-7 h-7"
+        />
+        <Image 
+          src="/dobbyvisuals/dobby name white.png" 
+          alt="Dobby AI" 
+          width={120} 
+          height={32} 
+          className="h-7 w-auto translate-y-[3px]"
+          priority
+        />
       </div>
 
       <div className="px-4 mb-4">

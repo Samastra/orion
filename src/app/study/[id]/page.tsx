@@ -7,6 +7,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { DocumentViewer } from "@/components/study/DocumentViewer";
+import Image from 'next/image';
 import { ChatInterface } from "@/components/study/ChatInterface";
 import { 
   Home, 
@@ -295,7 +296,22 @@ export default function StudySessionPage({ params }: { params: Promise<{ id: str
               <Home className="w-4 h-4" />
             </Button>
           </Link>
-          <span className="text-sm font-bold tracking-tight text-foreground/90 ml-1">Dobby AI</span>
+          <div className="flex items-center gap-2 ml-1">
+            <Image 
+              src="/dobbyvisuals/icon app.png" 
+              alt="" 
+              width={20} 
+              height={20} 
+              className="w-5 h-5"
+            />
+            <Image 
+              src="/dobbyvisuals/dobby name white.png" 
+              alt="Dobby AI" 
+              width={80} 
+              height={20} 
+              className="h-5 w-auto translate-y-[3px]"
+            />
+          </div>
           <div className="w-px h-4 bg-white/[0.06]" />
 
           {selectedCourse && (

@@ -101,12 +101,22 @@ export function CompetitorsSection() {
 
             <div className="relative flex flex-col items-center gap-5">
               {/* Logo */}
-              <div className="w-[88px] h-[88px] bg-gradient-to-br from-indigo-600 to-violet-600 rounded-[1.75rem] flex items-center justify-center border border-indigo-400/20 shadow-[0_12px_40px_rgba(99,102,241,0.3)]">
-                <GraduationCap className="text-white w-11 h-11" />
-              </div>
+              <Image 
+                src="/dobbyvisuals/icon app.png" 
+                alt="Dobby Icon" 
+                width={88} 
+                height={88} 
+                className="w-22 h-22 object-contain shadow-[0_12px_40px_rgba(99,102,241,0.2)]"
+              />
               <div className="text-center">
-                <p className="text-xl font-bold text-gray-900">Dobby AI</p>
-                <p className="text-[13px] text-gray-500 font-medium mt-1">Purpose-built for students</p>
+                <Image 
+                  src="/dobbyvisuals/dobby name -blue.png" 
+                  alt="Dobby AI" 
+                  width={120} 
+                  height={30} 
+                  className="h-8 w-auto mx-auto translate-y-[3px]"
+                />
+                <p className="text-[13px] text-gray-500 font-medium mt-2">Purpose-built for students</p>
               </div>
             </div>
           </div>

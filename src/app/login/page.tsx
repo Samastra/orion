@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { login, signInWithGoogle } from '@/lib/supabase/actions';
+import Image from 'next/image';
 import { GraduationCap, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -31,7 +32,13 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(99,102,241,0.08),transparent_60%)]" />
         <div className="relative z-10 max-w-md space-y-8">
           <div className="w-14 h-14 bg-indigo-600 rounded-2xl flex items-center justify-center border border-indigo-500/20">
-            <GraduationCap className="w-8 h-8 text-white" />
+            <Image 
+              src="/dobbyvisuals/icon app.png" 
+              alt="Dobby Icon" 
+              width={32} 
+              height={32} 
+              className="w-8 h-8 object-contain"
+            />
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-foreground">Welcome back to <span className="text-indigo-400">Dobby AI</span></h1>
           <p className="text-muted-foreground text-lg leading-relaxed">
@@ -51,11 +58,21 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="w-full max-w-md space-y-8">
           {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center">
-              <GraduationCap className="w-6 h-6 text-white" />
-            </div>
-            <span className="text-xl font-bold">Dobby AI</span>
+          <div className="lg:hidden flex items-center gap-3 mb-6">
+            <Image 
+              src="/dobbyvisuals/icon app.png" 
+              alt="" 
+              width={28} 
+              height={28} 
+              className="w-7 h-7"
+            />
+            <Image 
+              src="/dobbyvisuals/dobby name white.png" 
+              alt="Dobby AI" 
+              width={120} 
+              height={32} 
+              className="h-8 w-auto translate-y-[3px]"
+            />
           </div>
 
           <div className="space-y-2">

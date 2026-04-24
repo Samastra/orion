@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { BookOpen, Clock, Trophy, TrendingUp, LayoutDashboard, BookMarked, Target, GraduationCap, Settings, Flag, Search, Plus, Calendar, MoreHorizontal } from 'lucide-react';
+import Image from 'next/image';
 
 /**
  * High-fidelity static replica of the actual Dobby AI dashboard.
@@ -35,10 +36,20 @@ export function DashboardPreview() {
       <div className="w-[180px] shrink-0 border-r border-white/[0.05] flex flex-col py-4 px-3">
         {/* Logo */}
         <div className="flex items-center gap-2 px-2 mb-5">
-          <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center">
-            <GraduationCap className="text-white w-4 h-4" />
-          </div>
-          <span className="text-[12px] font-bold text-white/80">Dobby AI</span>
+          <Image 
+            src="/dobbyvisuals/icon app.png" 
+            alt="" 
+            width={20} 
+            height={20} 
+            className="w-5 h-5"
+          />
+          <Image 
+            src="/dobbyvisuals/dobby name white.png" 
+            alt="Dobby AI" 
+            width={80} 
+            height={20} 
+            className="h-5 w-auto translate-y-[3px]"
+          />
         </div>
 
         {/* Search */}

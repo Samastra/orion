@@ -4,6 +4,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { GraduationCap, MoveRight } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Button } from "@/components/ui/button";
 import { DashboardPreview } from "@/components/landing/DashboardPreview";
 import { CompetitorsSection } from "@/components/landing/CompetitorsSection";
@@ -65,11 +66,22 @@ export default function LandingPage() {
         <div className="bg-background/70 backdrop-blur-xl rounded-2xl border border-white/[0.04]">
         <div className="px-6 h-13 flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center border border-indigo-500/30">
-              <GraduationCap className="text-white w-4 h-4" />
-            </div>
-            <span className="text-[14px] font-bold tracking-tight">Dobby AI</span>
+          <Link href="/" className="flex items-center gap-3">
+            <Image 
+              src="/dobbyvisuals/icon app.png" 
+              alt="" 
+              width={28} 
+              height={28} 
+              className="w-7 h-7"
+            />
+            <Image 
+              src="/dobbyvisuals/dobby name white.png" 
+              alt="Dobby AI" 
+              width={100} 
+              height={24} 
+              className="h-6 w-auto translate-y-[3px]"
+              priority
+            />
           </Link>
 
           {/* Nav links — plain text, well spaced */}
@@ -117,7 +129,7 @@ export default function LandingPage() {
               className="text-center space-y-5 max-w-3xl mx-auto"
             >
               {/* Headline */}
-              <h1 className="text-4xl sm:text-5xl md:text-[3.5rem] font-bold tracking-tight leading-[1.1]">
+              <h1 className="text-4xl sm:text-5xl md:text-[3.5rem] font-semibold tracking-tight leading-[1.1]">
                 Study Smarter. Ace Exams.
                 <br />
                 <span className="bg-gradient-to-b from-white to-white/30 bg-clip-text text-transparent">
@@ -176,9 +188,21 @@ export default function LandingPage() {
       {/* ─── Footer ─────────────────────────────────────────── */}
       <footer className="border-t border-white/[0.04] py-8 px-6 mt-16">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 opacity-35">
-            <GraduationCap className="w-3.5 h-3.5" />
-            <span className="text-[12px] font-bold tracking-tight">Dobby AI</span>
+          <div className="flex items-center gap-3 opacity-35">
+            <Image 
+              src="/dobbyvisuals/icon app.png" 
+              alt="" 
+              width={20} 
+              height={20} 
+              className="w-5 h-5"
+            />
+            <Image 
+              src="/dobbyvisuals/dobby name white.png" 
+              alt="Dobby AI" 
+              width={80} 
+              height={20} 
+              className="h-5 w-auto translate-y-[3px]"
+            />
           </div>
           <p className="text-[12px] text-muted-foreground/30">
             © 2026 Dobby AI. Built for students who want more from their study time.
