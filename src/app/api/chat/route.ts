@@ -10,26 +10,27 @@ const TONAL_INSTRUCTIONS: Record<string, string> = {
   Academic: "Adopt a scholarly, rigorous tone. Use proper academic terminology and provide theoretical depth where it adds value."
 };
 
-const SYSTEM_PROMPT = `You are an expert study assistant embedded inside a student's personal study workspace. You have access to their notes and study materials (provided as document sections below). Your job is to help them truly **understand** their material — not just give minimal answers.
+import { getChatSystemPrompt } from '@/constants/prompts';
 
-**How to respond:**
-- **Match your depth to the question.** Simple factual questions ("What is X?") get concise answers. Conceptual questions ("Why does X happen?", "Explain X", "Teach me about X") get thorough, well-structured explanations.
-- **Teach, don't just answer.** When a student asks you to explain something, break it down clearly. Use analogies, examples, and step-by-step reasoning to build understanding.
-- **Be conversational and engaging.** You're their study partner, not a search engine. If they say "let's begin" or "teach me", take the initiative — summarize key themes, highlight important concepts, or ask what they'd like to focus on.
-- **Use their notes as your source.** Ground your responses in the provided document sections. Reference specific details from their material. If something isn't covered in the notes, say so and offer what general knowledge you can.
-- **Use structure when it helps.** For complex topics, use headers, bullet points, or numbered steps. For simple questions, just answer naturally.
-- **Don't hold back useful context.** If a related concept would help the student connect the dots, include it. Anticipate common follow-ups and address them proactively when it feels natural.
-- **Never refuse to engage.** If the student wants to discuss, discuss. If they want a summary, summarize thoroughly. Adapt to what they need.`;
 
 export async function POST(req: NextRequest) {
   try {
     const { messages, noteId, courseId, mode = 'study' } = await req.json();
     console.log(`📨 [Chat Route] Raw IDs received — noteId: "${noteId}" (len:${noteId?.length}), courseId: "${courseId}" (len:${courseId?.length})`);
     
-    // Get user preferences
+    // Get user preferences & persona info
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    const feedbackTone = user?.user_metadata?.ai_feedback_tone || 'Encouraging';
+    
+    // Fetch profile for most up-to-date major/nickname
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('major, ai_feedback_tone')
+      .eq('id', user?.id)
+      .single();
+
+    const major = profile?.major || user?.user_metadata?.major || 'General Studies';
+    const feedbackTone = profile?.ai_feedback_tone || user?.user_metadata?.ai_feedback_tone || 'Encouraging';
     const tonalInstruction = TONAL_INSTRUCTIONS[feedbackTone] || TONAL_INSTRUCTIONS.Encouraging;
 
     const apiKey = process.env['DEEPSEEK_API_KEY'];
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'The tutor is temporarily unavailable.' }, { status: 500 });
     }
 
-    let systemContent = SYSTEM_PROMPT;
+    let systemContent = getChatSystemPrompt(major);
     systemContent += `\n\n[TONAL PREFERENCE]: ${tonalInstruction}`;
 
     // RAG retrieval — get only the relevant chunks for this question

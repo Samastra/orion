@@ -2,18 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getRelevantContext, getMultiQueryContext } from '@/lib/rag';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GET_DIFFICULTY_INSTRUCTION = (difficulty: string) => {
-  switch (difficulty) {
-    case 'Easy':
-      return "DIFFICULTY: EASY. Focus on core concepts, basic recall, and fundamental definitions. Questions should be straightforward and test primary document facts.";
-    case 'Hard':
-      return "DIFFICULTY: HARD. Focus on complex reasoning, integrated mechanisms, and rare but critical details. Require the student to connect multiple facts from the document.";
-    case 'Exam-style':
-      return "DIFFICULTY: EXAM-STYLE. Use high-stakes exam formatting. Focus on clinical prioritization, complex calculations, and safety-critical decisions. Distractors should be highly plausible.";
-    default:
-      return "DIFFICULTY: MEDIUM. Use a balanced mix of recall, application, and analysis questions.";
-  }
-};
+import { 
+  getMCQSystemPrompt, 
+  getFlashcardSystemPrompt, 
+  getPracticeInstructionPrompt 
+} from '@/constants/prompts';
 
 async function withRetry<T>(fn: () => Promise<T>, retries: number = 3, delay: number = 1000): Promise<T> {
   try {
@@ -65,66 +58,7 @@ function autoCloseJSON(str: string): string {
 
 const MAX_PRACTICE_COUNT = 60;
 
-const GET_MCQ_PROMPT = (count: number, difficulty: string) => `You are an academic lecturer. Generate exactly ${count} multiple choice questions from the provided document sections.
 
-CRITICAL: You MUST respond with ONLY a valid JSON object. No markdown, no explanation, no extra text. Just the JSON object.
-
-The object must have this exact structure:
-{
-  "title": "A concise, categorical name for this set",
-  "items": [
-    {
-      "id": 1,
-      "question": "the question text",
-      "options": ["option A text", "option B text", "option C text", "option D text"],
-      "correctIndex": 2,
-      "optionExplanations": [
-        "Specifically explains why Option A is incorrect or correct.",
-        "Specifically explains why Option B is incorrect or correct.",
-        "Specifically explains why Option C is incorrect or correct.",
-        "Specifically explains why Option D is incorrect or correct."
-      ]
-    },
-    ... (exactly ${count} items)
-  ]
-}
-
-Rules:
-- ${GET_DIFFICULTY_INSTRUCTION(difficulty)}
-- correctIndex is 0-based (0=A, 1=B, 2=C, 3=D)
-- ANSWER POSITION RANDOMIZATION IS MANDATORY: Distribute correct answers roughly evenly across all four positions.
-- Use proper academic terminology. Use LaTeX/KaTeX for formulas and scientific notation.
-- JSON INTEGRITY: Double-escape backslashes in scientific notations.
-- Questions should be based ONLY on the provided document sections.
-- INDIVIDUAL OPTION FEEDBACK: You MUST provide exactly 4 strings in 'optionExplanations'.
-- For the CORRECT option, explain exactly why it is definitively right based on the text.
-- For WRONG options, explain the specific physiological/conceptual reason why they are distractors.
-- Make distractors plausible — related concepts a student might confuse with the correct answer.`;
-
-const GET_FLASHCARD_PROMPT = (count: number, difficulty: string) => `You are an academic lecturer. Generate exactly ${count} flashcards from the provided document sections.
-
-CRITICAL: You MUST respond with ONLY a valid JSON object. No markdown, no explanation, no extra text. Just the JSON object.
-
-The object must have this exact structure:
-{
-  "title": "A concise, categorical name for this set",
-  "items": [
-    {
-      "id": 1,
-      "front": "the question or term",
-      "back": "the answer or definition",
-      "category": "one of: Definition, Mechanism, Classification, Clinical, Calculation, Concept"
-    },
-    ... (exactly ${count} items)
-  ]
-}
-
-Rules:
-- ${GET_DIFFICULTY_INSTRUCTION(difficulty)}
-- Cover key concepts, definitions, mechanisms, and classifications from the document.
-- Use proper academic terminology. Use LaTeX/KaTeX for formulas and scientific notation.
-- JSON INTEGRITY: Double-escape backslashes in scientific notations.
-- Content must be based ONLY on the provided document sections.`;
 
 export async function POST(req: NextRequest) {
   try {
@@ -149,8 +83,8 @@ export async function POST(req: NextRequest) {
     const model = genAI.getGenerativeModel({ 
       model: "gemini-3.1-flash-lite-preview",
       systemInstruction: type === 'flashcard'
-        ? GET_FLASHCARD_PROMPT(finalizedCount, difficulty)
-        : GET_MCQ_PROMPT(finalizedCount, difficulty)
+        ? getFlashcardSystemPrompt(finalizedCount, difficulty)
+        : getMCQSystemPrompt(finalizedCount, difficulty)
     });
 
     // ─── RAG RETRIEVAL (always from DB, never from frontend) ────
@@ -191,25 +125,14 @@ export async function POST(req: NextRequest) {
     console.log(`📚 [Practice RAG] Retrieved ${retrieved.chunkCount} chunks (${retrieved.totalChars} chars)`);
 
     // ─── BUILD PROMPT ───────────────────────────────────────────
-    let systemContent = `Generate ${finalizedCount} ${type === 'flashcard' ? 'flashcards' : 'MCQs'} now with ${difficulty} difficulty.`;
-
-    if (!noteId) {
-      systemContent = `You are performing a COMPREHENSIVE COURSE REVIEW. Generate ${finalizedCount} ${type === 'flashcard' ? 'flashcards' : 'MCQs'} across all the topics in the provided sections. Distribute questions evenly across different topics.`;
-    }
-
-    if (topicFocus && topicFocus.trim()) {
-      systemContent += `\n\nIMPORTANT: Focus ALL questions specifically on this topic: "${topicFocus.trim()}". Only generate questions directly related to this topic.`;
-    }
-
-    if (technicalDepth > 7) {
-      systemContent += `\n\n🎯 HIGH-TECHNICALITY MODE (Level ${technicalDepth}): Prioritize intricate details, numerical data, specific terms, and complex scenarios. Avoid general or 'common sense' questions.`;
-    } else if (technicalDepth < 4) {
-      systemContent += `\n\n🎯 CONCEPTUAL MODE (Level ${technicalDepth}): Focus on core concepts, fundamental definitions, and high-level understanding.`;
-    }
-
-    if (count >= 100) {
-      systemContent += `\n\nCRITICAL: Generating ${count} items. Keep explanations succinct and ensure valid JSON.`;
-    }
+    let systemContent = getPracticeInstructionPrompt({
+      count: finalizedCount,
+      type,
+      difficulty,
+      isCourseReview: !noteId,
+      topicFocus,
+      technicalDepth
+    });
 
     systemContent += `\n\n--- DOCUMENT SECTIONS ---\n${retrieved.text}\n--- END SECTIONS ---`;
 

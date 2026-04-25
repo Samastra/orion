@@ -3,19 +3,9 @@ import { getRelevantContext } from '@/lib/rag';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
-const SYSTEM_PROMPT = `You are a hyper-efficient academic tutor.
-Your goal is to provide high-impact, extremely concise explanations.
+import { ANALYZE_SYSTEM_PROMPT } from '@/constants/prompts';
 
-STRICT CONSTRAINTS:
-- Answer in MAX 3 short sentences or clear bullet points.
-- NEVER use filler words or introductory phrases.
-- Focus solely on the highlighted text provided.
-- Use proper academic terminology but keep it understandable.
-- Be extremely token-efficient.
-- If surrounding context is available, use it to enrich your explanation.
-
-FORMAT:
-Direct answer only. No pleasantries.`;
+const SYSTEM_PROMPT = ANALYZE_SYSTEM_PROMPT;
 
 export async function POST(req: NextRequest) {
   try {
