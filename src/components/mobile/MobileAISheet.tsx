@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Square, Sparkles, BookOpen, Lightbulb, Brain, MessageCircle, Loader2 } from 'lucide-react';
+import { Send, Square, BookOpen, Lightbulb, Brain, MessageCircle, Loader2 } from 'lucide-react';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
@@ -153,7 +154,7 @@ function AISheetEmptyState({
       {/* Glowing orb */}
       <div className="relative mb-5">
         <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center">
-          <Sparkles className="w-7 h-7 text-indigo-400" />
+          <Image src="/dobbyvisuals/icon app.png" alt="Dobby" width={36} height={36} className="w-9 h-9 object-contain" />
         </div>
         <div className="absolute -inset-3 rounded-3xl bg-indigo-500/[0.06] blur-xl" />
       </div>
@@ -171,7 +172,7 @@ function AISheetEmptyState({
             onClick={() => onSelectPrompt(p)}
             className="flex items-center gap-2 px-3 py-3 rounded-xl bg-white/[0.03] border border-white/[0.07] text-[12px] font-medium text-muted-foreground/50 active:bg-indigo-500/10 active:text-indigo-400 active:border-indigo-500/20 transition-all text-left"
           >
-            <span className="text-indigo-400/50">{PROMPT_ICONS[p] || <Sparkles className="w-3.5 h-3.5" />}</span>
+            <span className="text-indigo-400/50">{PROMPT_ICONS[p] || <BookOpen className="w-3.5 h-3.5" />}</span>
             {p}
           </button>
         ))}
@@ -339,8 +340,8 @@ export function MobileAISheet({
               </div>
               <div className="flex items-center justify-between px-5 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-900/30">
-                    <Sparkles className="w-4 h-4 text-white" />
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-900/30 overflow-hidden">
+                    <Image src="/dobbyvisuals/icon app.png" alt="Dobby" width={36} height={36} className="w-full h-full object-cover" />
                   </div>
                   <div>
                     <p className="text-[14px] font-bold text-white/95">{title}</p>

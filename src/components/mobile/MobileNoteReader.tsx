@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import Image from 'next/image';
 import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
@@ -15,6 +16,7 @@ interface Note {
   title: string;
   content: string;
   created_at: string;
+  course_id?: string;
 }
 
 interface MobileNoteReaderProps {
@@ -129,7 +131,7 @@ export function MobileNoteReader({ note, onClose }: MobileNoteReaderProps) {
             className="fixed right-5 z-[105] w-12 h-12 rounded-full bg-indigo-600 shadow-xl shadow-black/40 flex items-center justify-center active:scale-90 transition-transform border border-indigo-500/30"
             style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)' }}
           >
-            <Sparkles className="w-5 h-5 text-white" />
+            <Image src="/dobbyvisuals/white-icon naked.png" alt="Dobby AI" width={22} height={22} className="w-[22px] h-[22px] object-contain" />
           </motion.button>
         )}
       </AnimatePresence>
@@ -140,7 +142,7 @@ export function MobileNoteReader({ note, onClose }: MobileNoteReaderProps) {
         onClose={() => setShowAI(false)}
         noteId={note.id}
         courseId={note.course_id}
-        title="AI Tutor"
+        title="Dobby"
         subtitle={`Studying: ${note.title}`}
       />
     </motion.div>

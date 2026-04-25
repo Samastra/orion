@@ -3,8 +3,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { CoursesPreview } from './CoursesPreview';
+import { CoursesMobilePreview } from './CoursesMobilePreview';
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 export function CoursesSection() {
+  const isDesktop = useMediaQuery('(min-width: 1024px)');
+
   return (
     <section className="relative py-28 px-6 bg-background overflow-hidden">
       {/* Subtle dot grid */}
@@ -53,9 +57,13 @@ export function CoursesSection() {
           <div className="absolute -inset-4 bg-violet-600/[0.03] blur-[60px] rounded-3xl -z-10" />
 
           {/* Preview */}
-          <div className="rounded-xl overflow-hidden border border-white/[0.08] shadow-[0_20px_80px_-20px_rgba(99,102,241,0.15)]">
-            <CoursesPreview />
-          </div>
+          {isDesktop ? (
+            <div className="rounded-xl overflow-hidden border border-white/[0.08] shadow-[0_20px_80px_-20px_rgba(99,102,241,0.15)] bg-background">
+              <CoursesPreview />
+            </div>
+          ) : (
+            <CoursesMobilePreview />
+          )}
 
           {/* Fade at bottom */}
           <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-background to-transparent pointer-events-none" />

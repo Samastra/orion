@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { GraduationCap, ChevronRight } from 'lucide-react';
+import { ArrowDown, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 
 const competitors = [
@@ -12,6 +12,17 @@ const competitors = [
 ];
 
 export function CompetitorsSection() {
+  const [radius, setRadius] = React.useState(115);
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setRadius(window.innerWidth < 640 ? 95 : 115);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <section className="relative py-28 px-6 bg-white overflow-hidden">
       <div className="max-w-5xl mx-auto relative">
@@ -21,7 +32,7 @@ export function CompetitorsSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="text-center mb-20 max-w-2xl mx-auto"
+          className="text-center mb-24 sm:mb-20 max-w-2xl mx-auto"
         >
           <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-500 mb-4">Why Switch?</p>
           <h2 className="text-3xl sm:text-[2.5rem] font-bold tracking-tight text-gray-900 leading-[1.15]">
@@ -43,7 +54,7 @@ export function CompetitorsSection() {
           className="flex flex-col md:flex-row items-center justify-center gap-12 md:gap-20"
         >
           {/* ─── Competitors (static, no orbit) ───────────── */}
-          <div className="relative w-[280px] h-[280px] shrink-0">
+          <div className="relative w-[240px] h-[240px] sm:w-[280px] sm:h-[280px] shrink-0">
             {/* Orbit rings */}
             <div className="absolute inset-0 rounded-full border border-dashed border-gray-200" />
             <div className="absolute inset-8 rounded-full border border-gray-100" />
@@ -56,7 +67,6 @@ export function CompetitorsSection() {
             {/* Static logos — positioned around the circle */}
             {competitors.map((comp, i) => {
               const angle = (i * 120 - 90) * (Math.PI / 180);
-              const radius = 115;
               const x = Math.cos(angle) * radius;
               const y = Math.sin(angle) * radius;
 
@@ -68,13 +78,13 @@ export function CompetitorsSection() {
                     transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
                   }}
                 >
-                  <div className="w-[52px] h-[52px] rounded-2xl bg-white border border-gray-100 shadow-[0_2px_16px_rgba(0,0,0,0.06)] flex items-center justify-center p-2.5">
+                  <div className="w-[52px] h-[52px] rounded-2xl bg-white border border-gray-100 shadow-[0_2px_16px_rgba(0,0,0,0.06)] flex items-center justify-center">
                     <Image
                       src={comp.logo}
                       alt={comp.name}
-                      width={36}
-                      height={36}
-                      className="w-full h-full object-contain"
+                      width={30}
+                      height={30}
+                      className="w-[30px] h-[30px] object-contain"
                     />
                   </div>
                   <p className="text-[10px] font-semibold text-gray-500 text-center mt-2 whitespace-nowrap">{comp.name}</p>
@@ -84,12 +94,11 @@ export function CompetitorsSection() {
           </div>
 
           {/* ─── Arrow ────────────────────────────────────── */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex items-center gap-0">
-              <div className="w-20 h-[2px] bg-gradient-to-r from-gray-200 via-gray-300 to-indigo-400 rounded-full" />
-              <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center -ml-1 shadow-[0_4px_20px_rgba(99,102,241,0.3)]">
-                <ChevronRight className="w-4 h-4 text-white" />
-              </div>
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center shadow-[0_4px_20px_rgba(99,102,241,0.3)]">
+              {/* Diagonal on mobile (Dobby is below), horizontal on desktop (Dobby is to the right) */}
+              <ArrowDown className="w-4 h-4 text-white md:hidden" />
+              <ArrowRight className="w-4 h-4 text-white hidden md:block" />
             </div>
             <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-indigo-400">Switch to</span>
           </div>
@@ -104,9 +113,9 @@ export function CompetitorsSection() {
               <Image 
                 src="/dobbyvisuals/icon app.png" 
                 alt="Dobby Icon" 
-                width={88} 
-                height={88} 
-                className="w-22 h-22 object-contain shadow-[0_12px_40px_rgba(99,102,241,0.2)]"
+                width={64} 
+                height={64} 
+                className="w-16 h-16 object-contain shadow-[0_12px_40px_rgba(99,102,241,0.2)]"
               />
               <div className="text-center">
                 <Image 
