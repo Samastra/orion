@@ -12,12 +12,11 @@ import { Button } from "@/components/ui/button";
 import { 
   BookOpen, 
   FileText, 
-  Sparkles, 
-  Upload, 
   ChevronRight, 
   Loader2,
   BookMarked,
-  ArrowLeft
+  ArrowLeft,
+  Wand2
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getNotes } from '@/lib/supabase/actions';
@@ -96,8 +95,8 @@ export function StudySelectorModal({ open, onSelect }: StudySelectorModalProps) 
                    </h2>
                    <p className="text-[12px] text-muted-foreground font-medium">
                      {step === 'course' && "Select a course to see its materials"}
-                     {step === 'note' && "Choose a specific note or upload a PDF"}
-                     {step === 'action' && "Select your preferred study mode"}
+                     {step === 'note' && "Choose a note to study"}
+                     {step === 'action' && "What would you like to do?"}
                    </p>
                  </div>
                </div>
@@ -158,25 +157,6 @@ export function StudySelectorModal({ open, onSelect }: StudySelectorModalProps) 
 
                 {step === 'note' && (
                   <>
-                    <button
-                      onClick={() => onSelect(selectedCourse, null, 'upload')}
-                      className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-indigo-500/30 transition-all mb-2 group"
-                    >
-                      <div className="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
-                        <Upload className="w-4 h-4 text-indigo-400" />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-bold text-[14px] text-foreground/90 tracking-tight group-hover:text-indigo-400 transition-colors">Upload Lecturer Material</p>
-                        <p className="text-[11px] text-muted-foreground/60">Read directly from original PDF/Doc</p>
-                      </div>
-                    </button>
-                    
-                    <div className="flex items-center gap-2 px-2 py-2">
-                       <div className="h-[1px] flex-1 bg-white/5" />
-                       <span className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">Saved Notes</span>
-                       <div className="h-[1px] flex-1 bg-white/5" />
-                    </div>
-
                     {notes.length === 0 ? (
                       <div className="py-12 text-center opacity-40 italic text-sm">No saved notes found for this course.</div>
                     ) : notes.map((note) => (
@@ -207,11 +187,15 @@ export function StudySelectorModal({ open, onSelect }: StudySelectorModalProps) 
                       className="p-5 rounded-xl bg-white/[0.02] border border-white/5 hover:bg-white/[0.04] hover:border-indigo-500/30 transition-all text-left flex flex-col gap-3 group"
                     >
                       <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 text-indigo-400">
-                         <Sparkles className="w-5 h-5 group-hover:animate-pulse" />
+                         <Wand2 className="w-5 h-5 group-hover:rotate-12 transition-transform" />
                       </div>
                       <div className="space-y-1">
-                        <p className="font-bold text-[15px] text-foreground tracking-tight group-hover:text-indigo-400">Get AI Notes</p>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">Let the AI restructure your raw notes into a well-organized, easy-to-read study guide.</p>
+                        <p className="font-bold text-[15px] text-foreground tracking-tight group-hover:text-indigo-400">Rewrite saved note with AI</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">Let Dobby restructure your raw notes into a well-organized, easy-to-read study guide.</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="shardCost" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#818cf8"/><stop offset="100%" stopColor="#7c3aed"/></linearGradient></defs><path d="M12 2L4 8.5L12 22L20 8.5L12 2Z" fill="url(#shardCost)"/><path d="M12 2L4 8.5H20L12 2Z" fill="white" fillOpacity="0.25"/></svg>
+                          <span className="text-[10px] font-semibold text-indigo-400/60">Costs 5 shards</span>
+                        </div>
                       </div>
                     </button>
 
@@ -223,8 +207,8 @@ export function StudySelectorModal({ open, onSelect }: StudySelectorModalProps) 
                          <BookMarked className="w-5 h-5" />
                       </div>
                       <div className="space-y-1">
-                        <p className="font-bold text-[15px] text-foreground tracking-tight group-hover:text-indigo-400">Study Original</p>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">Read and review the original note as you wrote it.</p>
+                        <p className="font-bold text-[15px] text-foreground tracking-tight group-hover:text-indigo-400">Study saved notes</p>
+                        <p className="text-[11px] text-muted-foreground leading-relaxed">Read and review your notes as you saved them, with Dobby available to help.</p>
                       </div>
                     </button>
                   </div>

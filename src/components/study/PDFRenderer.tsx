@@ -127,7 +127,23 @@ export function PDFRenderer({ file, onTextSelect }: PDFRendererProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [scale, setScale] = useState(1.2);
+  const [baseScale, setBaseScale] = useState(1.2);
   const [loading, setLoading] = useState(true);
+
+  // Compute a responsive base scale once the PDF and container are ready
+  useEffect(() => {
+    if (!pdfDoc || !containerRef.current) return;
+    const computeScale = async () => {
+      const page = await pdfDoc.getPage(1);
+      const viewport = page.getViewport({ scale: 1 });
+      const containerWidth = containerRef.current!.clientWidth - 32; // 16px padding each side
+      const fitted = containerWidth / viewport.width;
+      const clamped = Math.min(fitted, 1.5); // don't go larger than 1.5 on desktop
+      setBaseScale(clamped);
+      setScale(clamped);
+    };
+    computeScale();
+  }, [pdfDoc]);
 
   // Load PDF document
   useEffect(() => {

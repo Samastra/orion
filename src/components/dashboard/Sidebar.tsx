@@ -11,13 +11,11 @@ import {
   GraduationCap, 
   Settings, 
   LogOut,
-  Search,
   MessageSquareWarning,
   MoreVertical
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { UserAvatar, useUser } from "@/components/auth/UserAvatar";
 import { signOut } from "@/lib/supabase/actions";
 import {
@@ -75,12 +73,23 @@ export function Sidebar() {
       </div>
 
       <div className="px-4 mb-4">
-        <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-indigo-400 transition-colors" />
-          <Input 
-            placeholder="Search courses..." 
-            className="pl-9 bg-white/5 border-white/5 focus-visible:ring-indigo-500/50 rounded-xl h-10"
-          />
+        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+          <span className="text-[11px] font-bold text-muted-foreground/50 uppercase tracking-widest">Shards</span>
+          <div className="flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="shardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#818cf8" />
+                  <stop offset="50%" stopColor="#6366f1" />
+                  <stop offset="100%" stopColor="#7c3aed" />
+                </linearGradient>
+              </defs>
+              <path d="M12 2L4 8.5L12 22L20 8.5L12 2Z" fill="url(#shardGradient)" />
+              <path d="M12 2L4 8.5H20L12 2Z" fill="white" fillOpacity="0.25" />
+              <path d="M8 8.5L12 22L16 8.5H8Z" fill="white" fillOpacity="0.1" />
+            </svg>
+            <span className="text-[13px] font-bold text-white/90 tabular-nums">250</span>
+          </div>
         </div>
       </div>
 
