@@ -6,10 +6,14 @@ import { signup, signInWithGoogle } from '@/lib/supabase/actions';
 import Image from 'next/image';
 import { GraduationCap, Mail, Lock, User, ArrowRight, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { MajorSelect } from '@/components/auth/MajorSelect';
+import { YearSelect } from '@/components/auth/YearSelect';
 
 export default function SignupPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedMajor, setSelectedMajor] = useState("");
+  const [selectedYear, setSelectedYear] = useState("First Year");
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -117,33 +121,35 @@ export default function SignupPage() {
               </div>
             </div>
 
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest ml-1">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="you@uni.edu"
+                  className="w-full h-11 bg-white/[0.03] border border-white/[0.08] rounded-xl pl-10 pr-4 text-[13px] text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/30 transition-all"
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest ml-1">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
-                  <input
-                    name="email"
-                    type="email"
-                    required
-                    placeholder="you@uni.edu"
-                    className="w-full h-11 bg-white/[0.03] border border-white/[0.08] rounded-xl pl-10 pr-4 text-[13px] text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/30 transition-all"
-                  />
-                </div>
+                <label className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest ml-1">Major</label>
+                <MajorSelect 
+                  value={selectedMajor} 
+                  onChange={setSelectedMajor} 
+                />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest ml-1">Major</label>
-                <div className="relative">
-                  <GraduationCap className="absolute left-3.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground/40" />
-                  <input
-                    name="major"
-                    type="text"
-                    required
-                    placeholder="Pharmacy"
-                    className="w-full h-11 bg-white/[0.03] border border-white/[0.08] rounded-xl pl-10 pr-4 text-[13px] text-foreground placeholder:text-muted-foreground/30 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500/30 transition-all"
-                  />
-                </div>
+                <label className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest ml-1">Year</label>
+                <YearSelect 
+                  value={selectedYear} 
+                  onChange={setSelectedYear} 
+                />
               </div>
             </div>
 

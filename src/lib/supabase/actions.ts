@@ -151,6 +151,7 @@ export async function signup(formData: FormData) {
   const fullName = formData.get('fullName') as string;
   const nickname = formData.get('nickname') as string;
   const major = formData.get('major') as string;
+  const academicYear = formData.get('academicYear') as string;
 
   const { error } = await supabase.auth.signUp({
     email,
@@ -160,6 +161,7 @@ export async function signup(formData: FormData) {
         full_name: fullName,
         nickname: nickname,
         major: major,
+        academic_year: academicYear,
       },
     },
   });
@@ -229,6 +231,7 @@ export async function updateProfile(formData: FormData) {
   const nickname = formData.get('nickname') as string;
   const major = formData.get('major') as string;
   const university = formData.get('university') as string;
+  const academicYear = formData.get('academicYear') as string;
   const aiFeedbackTone = formData.get('aiFeedbackTone') as string;
 
   // Update profiles table
@@ -238,6 +241,7 @@ export async function updateProfile(formData: FormData) {
       nickname, 
       major, 
       university, 
+      academic_year: academicYear,
       ai_feedback_tone: aiFeedbackTone 
     })
     .eq('id', user.id);
@@ -253,6 +257,7 @@ export async function updateProfile(formData: FormData) {
       nickname,
       major,
       university,
+      academic_year: academicYear,
       ai_feedback_tone: aiFeedbackTone
     }
   });

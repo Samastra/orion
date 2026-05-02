@@ -40,6 +40,8 @@ import {
   EyeOff
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MajorSelect } from "@/components/auth/MajorSelect";
+import { YearSelect } from "@/components/auth/YearSelect";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -57,6 +59,7 @@ export function SettingsDialog({ open, onOpenChange, mobileMode = false }: Setti
     nickname: '',
     major: '',
     university: '',
+    academicYear: 'First Year',
     aiFeedbackTone: 'Encouraging'
   });
 
@@ -79,6 +82,7 @@ export function SettingsDialog({ open, onOpenChange, mobileMode = false }: Setti
         nickname: metadata.nickname || metadata.full_name?.split(' ')[0] || '',
         major: metadata.major || 'General Studies',
         university: metadata.university || '',
+        academicYear: metadata.academic_year || 'First Year',
         aiFeedbackTone: metadata.ai_feedback_tone || 'Encouraging'
       };
 
@@ -95,6 +99,7 @@ export function SettingsDialog({ open, onOpenChange, mobileMode = false }: Setti
             nickname: profile.nickname || initialData.nickname,
             major: profile.major || initialData.major,
             university: profile.university || initialData.university,
+            academicYear: profile.academic_year || initialData.academicYear,
             aiFeedbackTone: profile.ai_feedback_tone || initialData.aiFeedbackTone
           });
         } else {
@@ -118,6 +123,7 @@ export function SettingsDialog({ open, onOpenChange, mobileMode = false }: Setti
     data.append('nickname', formData.nickname);
     data.append('major', formData.major);
     data.append('university', formData.university);
+    data.append('academicYear', formData.academicYear);
     data.append('aiFeedbackTone', formData.aiFeedbackTone);
 
     const result = await updateProfile(data);
@@ -176,11 +182,21 @@ export function SettingsDialog({ open, onOpenChange, mobileMode = false }: Setti
           </div>
           <div className="grid gap-2.5">
             <Label htmlFor="major" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest px-1">Field of Study</Label>
-            <Input id="major" value={formData.major} onChange={(e) => setFormData({ ...formData, major: e.target.value })} placeholder="e.g. Computer Science" className="h-12 bg-white/5 border-white/5 focus-visible:ring-indigo-500/50 rounded-xl" />
+            <MajorSelect 
+              value={formData.major} 
+              onChange={(value) => setFormData({ ...formData, major: value })} 
+            />
           </div>
           <div className="grid gap-2.5">
             <Label htmlFor="university" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest px-1">University Name</Label>
             <Input id="university" value={formData.university} onChange={(e) => setFormData({ ...formData, university: e.target.value })} placeholder="e.g. Stanford University" className="h-12 bg-white/5 border-white/5 focus-visible:ring-indigo-500/50 rounded-xl" />
+          </div>
+          <div className="grid gap-2.5">
+            <Label htmlFor="academicYear" className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest px-1">Academic Year</Label>
+            <YearSelect 
+              value={formData.academicYear} 
+              onChange={(value) => setFormData({ ...formData, academicYear: value })} 
+            />
           </div>
         </div>
       </TabsContent>

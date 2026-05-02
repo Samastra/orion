@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   avatar_url text NULL,
   updated_at timestamp WITH time zone NULL DEFAULT now(),
   university text NULL,
+  academic_year text NULL,
   ai_feedback_tone text NULL DEFAULT 'Encouraging'::text,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users (id) ON DELETE CASCADE

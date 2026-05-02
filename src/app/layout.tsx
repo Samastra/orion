@@ -25,6 +25,10 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "Dobby AI — Your AI Study Partner",
   description: "Study smarter, ace exams, and still have fun. Dobby is your personal AI study assistant.",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/favicon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

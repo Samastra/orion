@@ -210,9 +210,9 @@ export default function PracticePage() {
   // ─────────────────────────────────────────────
   if (scopeStep === 'practice' && selectedCourse) {
     return (
-      <div className="flex flex-col h-[calc(100vh-60px)] animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="flex flex-col h-[calc(100vh-60px)] lg:h-[calc(100vh-60px)] animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6 px-4">
+        <div className="flex items-center justify-between mb-6 px-4 lg:mb-6 max-lg:mb-3">
           <div className="flex items-center gap-4">
             <Button 
               variant="ghost" 
@@ -221,7 +221,7 @@ export default function PracticePage() {
             >
               ← Back
             </Button>
-            <div className="flex flex-col">
+            <div className="flex-col hidden lg:flex">
               <h1 className="text-xl font-bold tracking-tight">{selectedCourse.name}</h1>
               <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-widest">
                 {selectedNote ? selectedNote.title : selectedCourse.type}
@@ -480,8 +480,18 @@ export default function PracticePage() {
     <div className="space-y-8 animate-in fade-in duration-700">
       {/* Hero Section */}
       <div className="flex flex-col gap-1">
-        <h1 className="text-3xl font-bold tracking-tight">Practice Arena</h1>
-        <p className="text-muted-foreground text-base">Select a course to test your knowledge with MCQs and Flashcards.</p>
+        <div className="flex items-center gap-3">
+          <Link href="/dashboard">
+            <Button 
+              variant="ghost" 
+              className="h-9 px-3 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 text-muted-foreground hover:text-foreground text-[12px] font-medium transition-all"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 mr-1.5" /> Back
+            </Button>
+          </Link>
+          <h1 className="text-3xl max-lg:text-2xl font-bold tracking-tight">Practice Arena</h1>
+        </div>
+        <p className="text-muted-foreground text-base hidden lg:block">Select a course to test your knowledge with MCQs and Flashcards.</p>
       </div>
 
       {isLoading ? (

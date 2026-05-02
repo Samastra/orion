@@ -6,6 +6,7 @@ import { MobileHeader } from "@/components/mobile/MobileHeader";
 import { MobileSheet } from "@/components/mobile/MobileSheet";
 import { SettingsDialog } from "@/components/dashboard/SettingsDialog";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { usePathname } from "next/navigation";
 import React from "react";
 
 export default function DashboardLayout({
@@ -15,14 +16,18 @@ export default function DashboardLayout({
 }) {
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const pathname = usePathname();
+
+  // Hide mobile header & bottom bar on practice page (immersive mode)
+  const isPractice = pathname === '/dashboard/practice';
 
   return (
     <div className="min-h-screen bg-background">
       {/* Desktop: sidebar (unchanged) */}
       <Sidebar />
 
-      {/* Mobile: header + tab bar */}
-      {!isDesktop && (
+      {/* Mobile: header + tab bar (hidden during practice) */}
+      {!isDesktop && !isPractice && (
         <>
           <MobileHeader onAvatarTap={() => setIsSettingsOpen(true)} />
           <BottomTabBar onSettingsOpen={() => setIsSettingsOpen(true)} />
@@ -33,7 +38,9 @@ export default function DashboardLayout({
       <main className={
         isDesktop
           ? 'pl-64 min-h-screen'
-          : 'min-h-screen pt-[72px] pb-24'
+          : isPractice
+            ? 'min-h-screen pt-2 pb-2'
+            : 'min-h-screen pt-[72px] pb-24'
       }>
         <div className={
           isDesktop
