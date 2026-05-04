@@ -28,12 +28,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { SettingsDialog } from "./SettingsDialog";
+import { ShardIcon } from "@/components/shards/ShardIcon";
+import { ShardPurchaseModal } from "@/components/shards/ShardPurchaseModal";
+import { useShards } from "@/components/shards/ShardBalanceProvider";
 
 export function Sidebar() {
   const pathname = usePathname();
   const { user, loading } = useUser();
+  const { balance, isLoading: shardsLoading } = useShards();
   const [sessionLink, setSessionLink] = React.useState('/study/new');
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
+  const [isShardShopOpen, setIsShardShopOpen] = React.useState(false);
 
   React.useEffect(() => {
     // Generate a unique session ID only on the client to avoid hydration mismatch
@@ -51,6 +56,8 @@ export function Sidebar() {
     { icon: Settings, label: 'Settings', onClick: () => setIsSettingsOpen(true) },
     { icon: MessageSquareWarning, label: 'Report Issue', href: '#' },
   ];
+
+  const isLowBalance = balance < 50;
 
   return (
     <div className="w-64 h-screen border-r border-white/5 bg-background hidden lg:flex flex-col fixed left-0 top-0">
@@ -73,24 +80,26 @@ export function Sidebar() {
       </div>
 
       <div className="px-4 mb-4">
-        <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+        <button 
+          onClick={() => setIsShardShopOpen(true)}
+          className={cn(
+            "w-full flex items-center justify-between px-3 py-2 rounded-xl bg-white/[0.03] border transition-all hover:bg-white/[0.05] group cursor-pointer",
+            isLowBalance 
+              ? "border-rose-500/20 hover:border-rose-500/30" 
+              : "border-white/[0.06] hover:border-indigo-500/20"
+          )}
+        >
           <span className="text-[11px] font-bold text-muted-foreground/50 uppercase tracking-widest">Shards</span>
           <div className="flex items-center gap-1.5">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="shardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#818cf8" />
-                  <stop offset="50%" stopColor="#6366f1" />
-                  <stop offset="100%" stopColor="#7c3aed" />
-                </linearGradient>
-              </defs>
-              <path d="M12 2L4 8.5L12 22L20 8.5L12 2Z" fill="url(#shardGradient)" />
-              <path d="M12 2L4 8.5H20L12 2Z" fill="white" fillOpacity="0.25" />
-              <path d="M8 8.5L12 22L16 8.5H8Z" fill="white" fillOpacity="0.1" />
-            </svg>
-            <span className="text-[13px] font-bold text-white/90 tabular-nums">250</span>
+            <ShardIcon size={14} />
+            <span className={cn(
+              "text-[13px] font-bold tabular-nums transition-colors",
+              isLowBalance ? "text-rose-400/90" : "text-white/90"
+            )}>
+              {shardsLoading ? '...' : balance.toLocaleString()}
+            </span>
           </div>
-        </div>
+        </button>
       </div>
 
       <nav className="flex-1 px-3 space-y-1">
@@ -178,6 +187,7 @@ export function Sidebar() {
       </div>
 
       <SettingsDialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen} />
+      <ShardPurchaseModal open={isShardShopOpen} onOpenChange={setIsShardShopOpen} />
     </div>
   );
 }

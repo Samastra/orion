@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRelevantContext, getMultiQueryContext } from '@/lib/rag';
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { createClient } from '@/lib/supabase/server';
+import { checkSufficientShards, deductShards } from '@/lib/shards';
+import { calculatePracticeCost } from '@/constants/shards';
 
 import { 
   getMCQSystemPrompt, 
@@ -73,6 +76,25 @@ export async function POST(req: NextRequest) {
     } = await req.json();
 
     const finalizedCount = Math.min(count, MAX_PRACTICE_COUNT);
+
+    // ─── AUTH & SHARD CHECK ───────────────────────────────────────
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    }
+
+    const practiceType = type === 'flashcard' ? 'flashcard' : 'mcq';
+    const shardCost = calculatePracticeCost(practiceType as 'mcq' | 'flashcard', finalizedCount);
+    const shardCheck = await checkSufficientShards(user.id, shardCost);
+
+    if (!shardCheck.sufficient) {
+      return NextResponse.json({ 
+        error: 'INSUFFICIENT_SHARDS',
+        required: shardCost,
+        balance: shardCheck.balance 
+      }, { status: 402 });
+    }
 
     const apiKey = process.env['GEMINI_API_KEY'];
     if (!apiKey) {
@@ -216,7 +238,17 @@ export async function POST(req: NextRequest) {
       }
 
       console.log(`✅ [Practice] Generated ${items.length} items.`);
-      return NextResponse.json({ items, title });
+
+      // ─── DEDUCT SHARDS (post-success) ──────────────────────────
+      const actualCost = calculatePracticeCost(practiceType as 'mcq' | 'flashcard', items.length);
+      await deductShards(user.id, actualCost, `practice_${practiceType}`, {
+        count: items.length,
+        difficulty,
+        noteId: noteId || null,
+        courseId: courseId || null,
+      });
+
+      return NextResponse.json({ items, title, shardsDeducted: actualCost });
 
     } catch (error) {
       console.error('Failed to parse AI response:', jsonContent.slice(0, 500));

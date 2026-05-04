@@ -21,6 +21,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { getNotes } from '@/lib/supabase/actions';
 import { cn } from "@/lib/utils";
+import { ShardIcon } from "@/components/shards/ShardIcon";
 
 interface StudySelectorModalProps {
   open: boolean;
@@ -193,8 +194,8 @@ export function StudySelectorModal({ open, onSelect }: StudySelectorModalProps) 
                         <p className="font-bold text-[15px] text-foreground tracking-tight group-hover:text-indigo-400">Rewrite saved note with AI</p>
                         <p className="text-[11px] text-muted-foreground leading-relaxed">Let Dobby restructure your raw notes into a well-organized, easy-to-read study guide.</p>
                         <div className="flex items-center gap-1.5 mt-1">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><defs><linearGradient id="shardCost" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#818cf8"/><stop offset="100%" stopColor="#7c3aed"/></linearGradient></defs><path d="M12 2L4 8.5L12 22L20 8.5L12 2Z" fill="url(#shardCost)"/><path d="M12 2L4 8.5H20L12 2Z" fill="white" fillOpacity="0.25"/></svg>
-                          <span className="text-[10px] font-semibold text-indigo-400/60">Costs 5 shards</span>
+                          <ShardIcon size={12} />
+                          <span className="text-[10px] font-semibold text-indigo-400/60">Uses shards per generated item</span>
                         </div>
                       </div>
                     </button>

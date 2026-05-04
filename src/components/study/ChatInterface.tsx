@@ -144,6 +144,9 @@ export const ChatInterface = React.forwardRef<
 
       if (!res.ok) {
         const err = await res.json();
+        if (err.error === 'INSUFFICIENT_SHARDS') {
+          throw new Error("You've run out of shards! Tap the shard balance in the sidebar to purchase more.");
+        }
         throw new Error(err.error || `API error: ${res.status}`);
       }
 

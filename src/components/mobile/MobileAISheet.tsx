@@ -271,6 +271,9 @@ export function MobileAISheet({
 
       if (!res.ok) {
         const err = await res.json();
+        if (err.error === 'INSUFFICIENT_SHARDS') {
+          throw new Error("You've run out of shards! Go to your dashboard to purchase more.");
+        }
         throw new Error(err.error || 'API error');
       }
 

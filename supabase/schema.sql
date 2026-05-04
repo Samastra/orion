@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   university text NULL,
   academic_year text NULL,
   ai_feedback_tone text NULL DEFAULT 'Encouraging'::text,
+  shard_balance integer NOT NULL DEFAULT 200,
+  chat_messages_since_deduction integer NOT NULL DEFAULT 0,
   CONSTRAINT profiles_pkey PRIMARY KEY (id),
   CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users (id) ON DELETE CASCADE
 ) TABLESPACE pg_default;

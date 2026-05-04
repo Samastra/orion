@@ -9,6 +9,10 @@ import type { MCQQuestion } from './MCQCard';
 import type { FlashcardData } from './FlashCard';
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { getQuestionSessions, getSessionQuestions } from '@/lib/supabase/actions';
+import { ShardIcon } from '@/components/shards/ShardIcon';
+import { ShardPurchaseModal } from '@/components/shards/ShardPurchaseModal';
+import { useShards } from '@/components/shards/ShardBalanceProvider';
+import { calculatePracticeCost } from '@/constants/shards';
 import {
   Dialog,
   DialogContent,
@@ -57,6 +61,14 @@ export function PracticeView({ context, courseId, noteId, topicFocus, initialTyp
     count: 20,
     difficulty: 'Medium'
   });
+
+  // Shard system
+  const { balance, refreshBalance } = useShards();
+  const [isShardShopOpen, setIsShardShopOpen] = useState(false);
+  const shardCost = calculatePracticeCost(
+    practiceType === 'flashcard' ? 'flashcard' : 'mcq', 
+    config.count
+  );
 
   // Auto-generate if requested
   useEffect(() => {
@@ -122,13 +134,20 @@ export function PracticeView({ context, courseId, noteId, topicFocus, initialTyp
         }),
       });
 
+      const data = await res.json();
+
+      // Handle insufficient shards from backend
       if (!res.ok) {
-        const data = await res.json();
+        if (data.error === 'INSUFFICIENT_SHARDS') {
+          throw new Error('INSUFFICIENT_SHARDS');
+        }
         throw new Error(data.error || `Error ${res.status}`);
       }
 
-      const data = await res.json();
       setSuggestedTitle(data.title || '');
+
+      // Refresh shard balance after successful generation
+      await refreshBalance();
 
       if (practiceType === 'mcq') {
         setMcqQuestions(data.items);
@@ -141,6 +160,13 @@ export function PracticeView({ context, courseId, noteId, topicFocus, initialTyp
       }
     } catch (err: any) {
       console.error('Generation failed:', err);
+
+      // Handle insufficient shards specifically
+      if (err.message === 'INSUFFICIENT_SHARDS') {
+        setIsShardShopOpen(true);
+        return;
+      }
+
       // More descriptive error for JSON parsing failures
       if (err instanceof SyntaxError || err.message?.includes('invalid format')) {
         setError('The AI return an invalid format. Please try again with a slightly different difficulty or count.');
@@ -371,8 +397,15 @@ export function PracticeView({ context, courseId, noteId, topicFocus, initialTyp
         config={config}
         onConfigChange={setConfig}
         onGenerate={generate}
+        shardCost={shardCost}
+        shardBalance={balance}
       />
       {renderCurrentView()}
+      <ShardPurchaseModal 
+        open={isShardShopOpen} 
+        onOpenChange={setIsShardShopOpen}
+        requiredShards={shardCost}
+      />
     </div>
   );
 }
@@ -451,7 +484,9 @@ function ResponsiveConfig({
   onClose,
   config,
   onConfigChange,
-  onGenerate
+  onGenerate,
+  shardCost,
+  shardBalance,
 }: {
   isDesktop: boolean;
   isOpen: boolean;
@@ -459,6 +494,8 @@ function ResponsiveConfig({
   config: PracticeConfig;
   onConfigChange: (c: PracticeConfig) => void;
   onGenerate: () => void;
+  shardCost: number;
+  shardBalance: number;
 }) {
   const content = (
     <div className="space-y-8">
@@ -518,11 +555,30 @@ function ResponsiveConfig({
         </div>
 
         <div className="pt-4 flex flex-col gap-3">
+          {/* Dynamic shard cost display */}
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-1.5">
+              <ShardIcon size={12} />
+              <span className="text-[11px] font-bold text-indigo-400/70 tabular-nums">
+                {calculatePracticeCost(config.count > 0 ? 'mcq' : 'mcq', config.count)} shards
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-muted-foreground/30">Balance:</span>
+              <span className={cn(
+                "text-[11px] font-bold tabular-nums",
+                shardBalance < shardCost ? "text-rose-400" : "text-white/50"
+              )}>
+                {shardBalance.toLocaleString()}
+              </span>
+            </div>
+          </div>
           <Button 
             onClick={() => { onGenerate(); onClose(); }}
-            className="w-full h-14 lg:h-11 rounded-2xl lg:rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 font-bold text-[15px] lg:text-[13px] active:scale-[0.98] transition-all"
+            disabled={shardBalance < shardCost}
+            className="w-full h-14 lg:h-11 rounded-2xl lg:rounded-xl bg-indigo-600 text-white hover:bg-indigo-500 font-bold text-[15px] lg:text-[13px] active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Apply Settings
+            {shardBalance < shardCost ? 'Not Enough Shards' : 'Apply Settings'}
           </Button>
           {!isDesktop && (
             <Button 

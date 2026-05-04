@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { getRelevantContext } from '@/lib/rag';
+import { canSendChatMessage, trackChatMessage } from '@/lib/shards';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
@@ -32,6 +33,15 @@ export async function POST(req: NextRequest) {
     const major = profile?.major || user?.user_metadata?.major || 'General Studies';
     const feedbackTone = profile?.ai_feedback_tone || user?.user_metadata?.ai_feedback_tone || 'Encouraging';
     const tonalInstruction = TONAL_INSTRUCTIONS[feedbackTone] || TONAL_INSTRUCTIONS.Encouraging;
+
+    // ─── SHARD CHECK (before AI call) ────────────────────────────
+    const chatCheck = await canSendChatMessage(user.id);
+    if (!chatCheck.allowed) {
+      return NextResponse.json({ 
+        error: 'INSUFFICIENT_SHARDS',
+        balance: chatCheck.balance 
+      }, { status: 402 });
+    }
 
     const apiKey = process.env['DEEPSEEK_API_KEY'];
     if (!apiKey) {
@@ -92,6 +102,12 @@ export async function POST(req: NextRequest) {
       console.error('DeepSeek API error:', response.status, errText);
       return NextResponse.json({ error: `API error: ${response.status}` }, { status: response.status });
     }
+
+    // ─── TRACK CHAT MESSAGE (deducts every 5th message) ──────────
+    // Safe to call here — canSendChatMessage already verified balance.
+    // We track BEFORE streaming so the deduction is guaranteed even if
+    // the client disconnects mid-stream.
+    await trackChatMessage(user.id);
 
     // Stream the SSE response back to the client as plain text chunks
     const encoder = new TextEncoder();
