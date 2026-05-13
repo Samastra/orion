@@ -17,6 +17,10 @@ export const SHARD_COSTS = {
   chat_bundle: 1,
   /** Number of chat messages before 1 shard is deducted */
   chat_messages_per_shard: 5,
+  /** Shards per minute of lecture audio recorded (covers Deepgram cost) */
+  lecture_recording_per_minute: 2,
+  /** Flat fee for AI transformation of transcript into study notes */
+  lecture_transform: 10,
 } as const;
 
 // ─── Shard Packs (Purchasable) ─────────────────────────────────────
@@ -24,19 +28,18 @@ export const SHARD_COSTS = {
 export interface ShardPack {
   id: string;
   name: string;
-  emoji: string;
   shards: number;
   price: number;
   badge: string | null;
 }
 
 export const SHARD_PACKS: readonly ShardPack[] = [
-  { id: 'trial',    name: 'Trial',    emoji: '🧪', shards: 50,    price: 0.49, badge: null },
-  { id: 'starter',  name: 'Starter',  emoji: '⚡', shards: 200,   price: 0.99, badge: null },
-  { id: 'basic',    name: 'Basic',    emoji: '🔥', shards: 500,   price: 1.99, badge: null },
-  { id: 'standard', name: 'Standard', emoji: '💎', shards: 1500,  price: 3.99, badge: null },
-  { id: 'plus',     name: 'Plus',     emoji: '🌟', shards: 5000,  price: 6.99, badge: 'Best Value' },
-  { id: 'premium',  name: 'Premium',  emoji: '👑', shards: 15000, price: 9.99, badge: null },
+  { id: 'trial',    name: 'Trial',    shards: 50,    price: 0.49, badge: null },
+  { id: 'starter',  name: 'Starter',  shards: 200,   price: 0.99, badge: null },
+  { id: 'basic',    name: 'Basic',    shards: 500,   price: 1.99, badge: null },
+  { id: 'standard', name: 'Standard', shards: 1500,  price: 3.99, badge: null },
+  { id: 'plus',     name: 'Plus',     shards: 5000,  price: 6.99, badge: 'Best Value' },
+  { id: 'premium',  name: 'Premium',  shards: 15000, price: 9.99, badge: null },
 ] as const;
 
 // ─── Signup Bonus ──────────────────────────────────────────────────
@@ -62,4 +65,24 @@ export function calculatePracticeCost(type: 'mcq' | 'flashcard', count: number):
  */
 export function shouldDeductChatShard(messageCount: number): boolean {
   return messageCount > 0 && messageCount % SHARD_COSTS.chat_messages_per_shard === 0;
+}
+
+/**
+ * Calculate the total shard cost for a lecture recording + transformation.
+ * @param durationSeconds - Total recording duration in seconds
+ * @returns Object with recording cost, transform cost, and total
+ */
+export function calculateLectureCost(durationSeconds: number): {
+  recordingCost: number;
+  transformCost: number;
+  totalCost: number;
+} {
+  const minutes = Math.ceil(durationSeconds / 60);
+  const recordingCost = minutes * SHARD_COSTS.lecture_recording_per_minute;
+  const transformCost = SHARD_COSTS.lecture_transform;
+  return {
+    recordingCost,
+    transformCost,
+    totalCost: recordingCost + transformCost,
+  };
 }

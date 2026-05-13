@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Swords, Settings, BookOpen, Target, X } from 'lucide-react';
+import { LayoutDashboard, Swords, Settings, BookOpen, Target, X, Mic } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -32,6 +32,12 @@ export function BottomTabBar({ onSettingsOpen }: BottomTabBarProps) {
       label: 'Home',
       href: '/dashboard',
       matchPaths: ['/dashboard'],
+    },
+    {
+      icon: Mic,
+      label: 'Record',
+      href: '/dashboard/record',
+      matchPaths: ['/dashboard/record'],
     },
     {
       icon: Swords,

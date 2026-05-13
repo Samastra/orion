@@ -3,9 +3,7 @@ import { getRelevantContext } from '@/lib/rag';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
-import { ANALYZE_SYSTEM_PROMPT } from '@/constants/prompts';
-
-const SYSTEM_PROMPT = ANALYZE_SYSTEM_PROMPT;
+const SYSTEM_PROMPT = `You are an expert academic tutor. Provide extremely concise, punchy, and direct answers to the user's request. Keep it short.`;
 
 export async function POST(req: NextRequest) {
   try {

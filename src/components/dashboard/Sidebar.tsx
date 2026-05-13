@@ -12,7 +12,8 @@ import {
   Settings, 
   LogOut,
   MessageSquareWarning,
-  MoreVertical
+  MoreVertical,
+  Mic
 } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ export function Sidebar() {
     { icon: BookOpen, label: 'Study Mode', href: sessionLink },
     { icon: Target, label: 'Practice', href: '/dashboard/practice' },
     { icon: GraduationCap, label: 'Courses', href: '/dashboard/courses' },
+    { icon: Mic, label: 'Note Taker', href: '/dashboard/record' },
   ];
 
   const bottomNavItems = [

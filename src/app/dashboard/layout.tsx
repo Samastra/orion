@@ -19,8 +19,8 @@ export default function DashboardLayout({
   const [isSettingsOpen, setIsSettingsOpen] = React.useState(false);
   const pathname = usePathname();
 
-  // Hide mobile header & bottom bar on practice page (immersive mode)
-  const isPractice = pathname === '/dashboard/practice';
+  // Hide mobile header & bottom bar on practice and record pages (immersive mode)
+  const isImmersive = pathname === '/dashboard/practice' || pathname === '/dashboard/record';
 
   return (
     <ShardBalanceProvider>
@@ -29,7 +29,7 @@ export default function DashboardLayout({
         <Sidebar />
 
         {/* Mobile: header + tab bar (hidden during practice) */}
-        {!isDesktop && !isPractice && (
+        {!isDesktop && !isImmersive && (
           <>
             <MobileHeader onAvatarTap={() => setIsSettingsOpen(true)} />
             <BottomTabBar onSettingsOpen={() => setIsSettingsOpen(true)} />
@@ -40,7 +40,7 @@ export default function DashboardLayout({
         <main className={
           isDesktop
             ? 'pl-64 min-h-screen'
-            : isPractice
+            : isImmersive
               ? 'min-h-screen pt-2 pb-2'
               : 'min-h-screen pt-[72px] pb-24'
         }>

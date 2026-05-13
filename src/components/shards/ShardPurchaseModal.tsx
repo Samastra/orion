@@ -74,7 +74,7 @@ export function ShardPurchaseModal({ open, onOpenChange, requiredShards }: Shard
         </DialogDescription>
 
         {/* Header */}
-        <div className="px-5 pt-5 pb-3 border-b border-white/[0.06] bg-gradient-to-b from-indigo-500/[0.06] to-transparent">
+        <div className="px-5 pt-5 pb-3 border-b border-white/[0.06] bg-transparent">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
@@ -133,13 +133,10 @@ export function ShardPurchaseModal({ open, onOpenChange, requiredShards }: Shard
                   </div>
                 )}
 
-                {/* Emoji */}
-                <span className="text-xl mb-1">{pack.emoji}</span>
-
                 {/* Shard amount */}
-                <div className="flex items-center gap-1 mb-0.5">
-                  <ShardIcon size={12} />
-                  <span className="text-[16px] font-black text-white tabular-nums">
+                <div className="flex items-center gap-1.5 mb-1 mt-2">
+                  <ShardIcon size={14} />
+                  <span className="text-[18px] font-black text-white tabular-nums">
                     {pack.shards.toLocaleString()}
                   </span>
                 </div>
