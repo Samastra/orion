@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { UserAvatar, useUser } from '@/components/auth/UserAvatar';
 import { cn } from '@/lib/utils';
-import { Bell } from 'lucide-react';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 interface MobileHeaderProps {
   onAvatarTap?: () => void;
@@ -69,9 +69,7 @@ export function MobileHeader({ onAvatarTap }: MobileHeaderProps) {
         </div>
 
         <div className="flex items-center gap-2.5 ml-4">
-          <button className="w-9 h-9 rounded-full bg-white/[0.05] border border-white/[0.06] flex items-center justify-center active:scale-90 transition-transform">
-            <Bell className="w-4 h-4 text-muted-foreground/60" />
-          </button>
+          <NotificationBell />
           <button
             onClick={onAvatarTap}
             className="active:scale-90 transition-transform"

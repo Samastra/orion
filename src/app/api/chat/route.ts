@@ -22,6 +22,10 @@ export async function POST(req: NextRequest) {
     // Get user preferences & persona info
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
     // Fetch profile for most up-to-date major/nickname
     const { data: profile } = await supabase

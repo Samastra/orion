@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 
 const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
-import { TRANSFORM_PROMPT as CENTRAL_TRANSFORM_PROMPT } from '@/constants/prompts';
+import { getTransformPrompt } from '@/constants/prompts';
 
-const TRANSFORM_PROMPT = CENTRAL_TRANSFORM_PROMPT;
+const TRANSFORM_PROMPT = getTransformPrompt();
 
 export async function POST(req: NextRequest) {
   try {

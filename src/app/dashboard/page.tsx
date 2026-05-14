@@ -12,20 +12,55 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UserAvatar, useUser } from "@/components/auth/UserAvatar";
-import { createClient } from '@/lib/supabase/client';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { CourseStatsDrawer } from "@/components/dashboard/CourseStatsDrawer";
-import { getPerformanceData } from "@/lib/supabase/actions";
+import { getPerformanceData, getDashboardStats } from "@/lib/supabase/actions";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import Link from 'next/link';
+
+// ─── MOTIVATIONAL TEXTS ─────────────────────────────────────────
+// Rotates daily based on day-of-year
+const MOTIVATIONAL_TEXTS = [
+  "Small steps every day lead to big results. Keep going! 🚀",
+  "The best time to study was yesterday. The next best time is now. 📚",
+  "Consistency is the key to mastery. Show up every day. 💪",
+  "Every page you read brings you closer to your goals. 🌟",
+  "Your dedication today shapes your success tomorrow. ⏳",
+  "The mind is like a muscle — the more you train it, the stronger it gets. 🧠",
+  "Focus on progress, not perfection. 🔥",
+  "Champions are made in the hours nobody sees. 🏆",
+  "Learning never exhausts the mind. — Leonardo da Vinci 🎨",
+  "You don't have to be great to start, but you have to start to be great. ✨",
+  "Discipline is choosing what you want most over what you want now. 💎",
+  "A little progress each day adds up to big results. 📈",
+  "Stay curious. Stay hungry. Stay consistent. 🌱",
+  "The expert in anything was once a beginner. Keep learning. 🎓",
+];
+
+function getMotivationalText(): string {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), 0, 0);
+  const diff = now.getTime() - start.getTime();
+  const dayOfYear = Math.floor(diff / (1000 * 60 * 60 * 24));
+  return MOTIVATIONAL_TEXTS[dayOfYear % MOTIVATIONAL_TEXTS.length];
+}
 
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
-  const [courseCount, setCourseCount] = React.useState<number | null>(null);
   const isDesktop = useMediaQuery('(min-width: 1024px)');
   
   // Stats Drawer State
   const [selectedCourse, setSelectedCourse] = React.useState<any | null>(null);
   const [performanceData, setPerformanceData] = React.useState<any[]>([]);
+
+  // Dashboard Stats (live data)
+  const [statsLoading, setStatsLoading] = React.useState(true);
+  const [dashboardStats, setDashboardStats] = React.useState({
+    courseCount: 0,
+    practiceScore: null as number | null,
+    studyHours: '0h',
+    dailyStreak: 0,
+  });
   
   const nickname = user?.user_metadata?.nickname;
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Student';
@@ -33,19 +68,20 @@ export default function DashboardPage() {
   const university = user?.user_metadata?.university;
   const greetingName = nickname || firstName;
 
+  // Fetch live dashboard stats
   React.useEffect(() => {
-    const fetchCourseCount = async () => {
-      const supabase = createClient();
-      const { count, error } = await supabase
-        .from('courses')
-        .select('*', { count: 'exact', head: true });
-      
-      if (!error) setCourseCount(count);
+    const fetchStats = async () => {
+      const result = await getDashboardStats();
+      if (result.data) {
+        setDashboardStats(result.data);
+      }
+      setStatsLoading(false);
     };
 
-    if (user) fetchCourseCount();
+    if (user) fetchStats();
   }, [user]);
 
+  // Fetch performance data for course stats drawer
   React.useEffect(() => {
     const fetchPerformance = async () => {
       const { data } = await getPerformanceData();
@@ -58,21 +94,47 @@ export default function DashboardPage() {
     ? performanceData.find(p => p.name === selectedCourse.name) 
     : null;
 
+  const motivationalText = getMotivationalText();
+
   const stats = [
-    { label: 'Courses Active', value: courseCount !== null ? courseCount.toString() : '...', icon: BookOpen, color: 'text-indigo-400', bg: 'bg-indigo-500/10' },
-    { label: 'Study Hours', value: '48.5h', icon: Clock, color: 'text-violet-400', bg: 'bg-violet-500/10' },
-    { label: 'Practice Score', value: '92%', icon: Trophy, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-    { label: 'Daily Streak', value: '14 Days', icon: TrendingUp, color: 'text-rose-400', bg: 'bg-rose-500/10' },
+    { 
+      label: 'Courses Active', 
+      value: statsLoading ? '...' : dashboardStats.courseCount.toString(), 
+      icon: BookOpen, 
+      color: 'text-indigo-400', 
+      bg: 'bg-indigo-500/10' 
+    },
+    { 
+      label: 'Study Hours', 
+      value: statsLoading ? '...' : dashboardStats.studyHours, 
+      icon: Clock, 
+      color: 'text-violet-400', 
+      bg: 'bg-violet-500/10' 
+    },
+    { 
+      label: 'Practice Score', 
+      value: statsLoading ? '...' : (dashboardStats.practiceScore !== null ? `${dashboardStats.practiceScore}%` : '—'), 
+      icon: Trophy, 
+      color: 'text-emerald-400', 
+      bg: 'bg-emerald-500/10' 
+    },
+    { 
+      label: 'Daily Streak', 
+      value: statsLoading ? '...' : `${dashboardStats.dailyStreak} ${dashboardStats.dailyStreak === 1 ? 'Day' : 'Days'}`, 
+      icon: TrendingUp, 
+      color: 'text-rose-400', 
+      bg: 'bg-rose-500/10' 
+    },
   ];
 
   // ─── Mobile Layout ─────────────────────────────────────────────
   if (!isDesktop) {
     return (
       <div className="space-y-6 pb-8">
-        {/* Progress prompt */}
+        {/* Motivational text */}
         <div className="bg-indigo-500/[0.06] border border-indigo-500/10 rounded-2xl p-4">
           <p className="text-[13px] text-muted-foreground leading-relaxed">
-            You&apos;ve completed <span className="text-indigo-400 font-semibold">85%</span> of your weekly study goals. Keep it up! 🔥
+            {motivationalText}
           </p>
         </div>
 
@@ -147,7 +209,7 @@ export default function DashboardPage() {
     );
   }
 
-  // ─── Desktop Layout (unchanged) ───────────────────────────────
+  // ─── Desktop Layout ────────────────────────────────────────────
   return (
     <div className="space-y-10 pb-20">
       {/* Header */}
@@ -170,9 +232,10 @@ export default function DashboardPage() {
               </div>
             )}
           </div>
-          <p className="text-muted-foreground text-lg">You&apos;ve completed <span className="text-indigo-500 font-semibold">85%</span> of your weekly study goals. Keep it up!</p>
+          <p className="text-muted-foreground text-lg">{motivationalText}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
+          <NotificationBell />
           <UserAvatar size="lg" />
         </div>
       </div>

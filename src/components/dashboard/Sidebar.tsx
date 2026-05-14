@@ -46,12 +46,22 @@ export function Sidebar() {
     setSessionLink(`/study/session-${Math.random().toString(36).slice(2, 10)}`);
   }, []);
 
-  const navItems = [
-    { icon: LayoutDashboard, label: 'Home', href: '/dashboard' },
-    { icon: BookOpen, label: 'Study Mode', href: sessionLink },
-    { icon: Target, label: 'Practice', href: '/dashboard/practice' },
-    { icon: GraduationCap, label: 'Courses', href: '/dashboard/courses' },
-    { icon: Mic, label: 'Note Taker', href: '/dashboard/record' },
+  const navGroups = [
+    {
+      title: 'MAIN',
+      items: [
+        { icon: LayoutDashboard, label: 'Home', href: '/dashboard' },
+        { icon: BookOpen, label: 'Study Mode', href: sessionLink },
+        { icon: GraduationCap, label: 'Courses', href: '/dashboard/courses' },
+      ]
+    },
+    {
+      title: 'TOOLS',
+      items: [
+        { icon: Target, label: 'Practice', href: '/dashboard/practice' },
+        { icon: Mic, label: 'Note Taker', href: '/dashboard/record' },
+      ]
+    }
   ];
 
   const bottomNavItems = [
@@ -104,25 +114,48 @@ export function Sidebar() {
         </button>
       </div>
 
-      <nav className="flex-1 px-3 space-y-1">
-        {navItems.map((item) => (
-          <Link key={item.label} href={item.href}>
-            <div className={cn(
-              "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group text-sm font-medium",
-              pathname === item.href 
-                ? "bg-indigo-600/10 text-indigo-400" 
-                : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
-            )}>
-              <item.icon className={cn(
-                "w-5 h-5 transition-colors",
-                pathname === item.href ? "text-indigo-400" : "group-hover:text-indigo-400"
-              )} />
-              {item.label}
-              {pathname === item.href && (
-                <div className="ml-auto w-1 h-1 rounded-full bg-indigo-400" />
-              )}
+      <nav className="flex-1 px-4 space-y-6 overflow-y-auto custom-scrollbar">
+        {navGroups.map((group) => (
+          <div key={group.title}>
+            <div className="text-[11px] font-bold text-muted-foreground/40 uppercase tracking-widest px-2 mb-2">
+              {group.title}
             </div>
-          </Link>
+            <div className="relative ml-2.5">
+              {group.items.map((item, index) => {
+                const isLast = index === group.items.length - 1;
+                return (
+                  <div key={item.label} className="relative">
+                    {/* Tree branch styling */}
+                    {isLast ? (
+                      <div className="absolute left-0 top-0 bottom-1/2 w-4 border-l border-b border-white/[0.08] rounded-bl-xl pointer-events-none" />
+                    ) : (
+                      <>
+                        <div className="absolute left-0 top-0 bottom-0 border-l border-white/[0.08] pointer-events-none" />
+                        <div className="absolute left-0 top-1/2 w-4 border-t border-white/[0.08] pointer-events-none" />
+                      </>
+                    )}
+                    
+                    <div className="py-0.5 pl-6">
+                      <Link href={item.href} className="block">
+                        <div className={cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 group text-[13px] font-medium",
+                          pathname === item.href 
+                            ? "bg-indigo-600/10 text-indigo-400" 
+                            : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                        )}>
+                          <item.icon className={cn(
+                            "w-4 h-4 transition-colors",
+                            pathname === item.href ? "text-indigo-400" : "group-hover:text-indigo-400"
+                          )} />
+                          {item.label}
+                        </div>
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         ))}
       </nav>
 

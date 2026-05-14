@@ -23,6 +23,7 @@ function ResizablePanelGroup({
   return (
     <Group
       data-slot="resizable-panel-group"
+      // @ts-expect-error react-resizable-panels types are slightly misaligned
       direction={direction as any}
       className={cn(
         "flex h-full w-full aria-[orientation=vertical]:flex-col",

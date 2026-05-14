@@ -104,6 +104,116 @@ export async function getPerformanceData() {
   return { data: chartData };
 }
 
+/**
+ * DASHBOARD STATS
+ * 
+ * Fetches all live dashboard stats in a single call:
+ * - Course count (from courses table)
+ * - Practice score (from practice_attempts, first attempts only)
+ * - Study hours (from shard_transactions lecture metadata + practice estimate)
+ * - Daily streak (from profiles, updated atomically on each visit)
+ */
+export async function getDashboardStats() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) return { error: 'Not authenticated' };
+
+  // Run all queries in parallel for speed
+  const [courseResult, attemptsResult, transactionsResult, profileResult] = await Promise.all([
+    supabase
+      .from('courses')
+      .select('*', { count: 'exact', head: true }),
+    supabase
+      .from('practice_attempts')
+      .select('is_correct')
+      .eq('user_id', user.id)
+      .eq('attempt_number', 1),
+    supabase
+      .from('shard_transactions')
+      .select('metadata')
+      .eq('user_id', user.id)
+      .eq('reason', 'lecture_transform'),
+    supabase
+      .from('profiles')
+      .select('last_active_date, current_streak')
+      .eq('id', user.id)
+      .single(),
+  ]);
+
+  // ─── COURSE COUNT ──────────────────────────────────────────
+  const courseCount = courseResult.count || 0;
+
+  // ─── PRACTICE SCORE ────────────────────────────────────────
+  const attempts = attemptsResult.data || [];
+  let practiceScore: number | null = null;
+  if (attempts.length > 0) {
+    const correct = attempts.filter((a: any) => a.is_correct).length;
+    practiceScore = Math.round((correct / attempts.length) * 100);
+  }
+
+  // ─── STUDY HOURS ───────────────────────────────────────────
+  // Sum lecture recording durations from shard transaction metadata
+  let totalStudyMinutes = 0;
+  const transactions = transactionsResult.data || [];
+  for (const tx of transactions) {
+    const meta = tx.metadata as any;
+    if (meta?.durationSeconds) {
+      totalStudyMinutes += Math.ceil(meta.durationSeconds / 60);
+    }
+  }
+  // Estimate practice time (~30s per question)
+  totalStudyMinutes += Math.ceil(attempts.length * 0.5);
+
+  // Format hours
+  let studyHours: string;
+  if (totalStudyMinutes === 0) {
+    studyHours = '0h';
+  } else {
+    const hours = totalStudyMinutes / 60;
+    studyHours = hours % 1 === 0 ? `${hours}h` : `${hours.toFixed(1)}h`;
+  }
+
+  // ─── DAILY STREAK ─────────────────────────────────────────
+  const profile = profileResult.data;
+  const today = new Date().toISOString().split('T')[0];
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+
+  let streak = 1;
+  if (profile) {
+    const lastActive = profile.last_active_date;
+    const currentStreak = profile.current_streak || 0;
+
+    if (lastActive === today) {
+      // Already active today — keep current streak
+      streak = currentStreak;
+    } else if (lastActive === yesterday) {
+      // Consecutive day — increment streak
+      streak = currentStreak + 1;
+      await supabase
+        .from('profiles')
+        .update({ last_active_date: today, current_streak: streak })
+        .eq('id', user.id);
+    } else {
+      // Gap in activity — reset to 1
+      streak = 1;
+      await supabase
+        .from('profiles')
+        .update({ last_active_date: today, current_streak: streak })
+        .eq('id', user.id);
+    }
+  }
+
+  return {
+    data: {
+      courseCount,
+      practiceScore,
+      studyHours,
+      dailyStreak: streak,
+    }
+  };
+}
+
 export async function signInWithGoogle() {
   const supabase = await createClient();
   const origin = (await headers()).get('origin');
@@ -591,6 +701,257 @@ export async function deleteAnnotation(id: string) {
     .from('annotations')
     .delete()
     .eq('id', id);
+
+  if (error) return { error: error.message };
+  return { success: true };
+}
+
+// ═══════════════════════════════════════════════════════════════
+// NOTE SHARING SYSTEM
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Share a note with peers at the same university.
+ * Copies the note content into shared_notes and sets is_shared = true.
+ */
+export async function shareNote(noteId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  // Get the note + its course info
+  const { data: note, error: noteError } = await supabase
+    .from('notes')
+    .select('id, title, content, course_id')
+    .eq('id', noteId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (noteError || !note) return { error: 'Note not found' };
+
+  const { data: course, error: courseError } = await supabase
+    .from('courses')
+    .select('name, type')
+    .eq('id', note.course_id)
+    .single();
+
+  if (courseError || !course) return { error: 'Course not found' };
+
+  // Get sharer's university from profile
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('university')
+    .eq('id', user.id)
+    .single();
+
+  const university = profile?.university || user.user_metadata?.university;
+  if (!university) return { error: 'University not set. Please update your profile.' };
+
+  // Insert into shared_notes (snapshot of note at share time)
+  const { error: shareError } = await supabase
+    .from('shared_notes')
+    .insert({
+      sharer_user_id: user.id,
+      original_note_id: noteId,
+      university,
+      major: user.user_metadata?.major || 'General',
+      course_code: course.name,   // e.g. "PCG 201"
+      course_type: course.type,   // e.g. "Pharmaceutical Chemistry"
+      title: note.title,
+      content: note.content,
+    });
+
+  if (shareError) {
+    console.error('❌ [Share] Failed to share note:', shareError);
+    return { error: 'Failed to share note' };
+  }
+
+  // Mark original note as shared
+  await supabase
+    .from('notes')
+    .update({ is_shared: true })
+    .eq('id', noteId);
+
+  return { success: true };
+}
+
+/**
+ * Get unread shared notes for the current user's university.
+ * Excludes notes shared by the user themselves and already dismissed/added notes.
+ */
+export async function getSharedNotifications() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated', data: [] };
+
+  // Get user's university
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('university')
+    .eq('id', user.id)
+    .single();
+
+  const university = profile?.university || user.user_metadata?.university;
+  if (!university) return { data: [] };
+
+  // Get shared notes for this university, excluding own + dismissed
+  const { data: sharedNotes, error } = await supabase
+    .from('shared_notes')
+    .select('id, sharer_user_id, course_code, course_type, title, content, shared_at')
+    .eq('university', university)
+    .neq('sharer_user_id', user.id)
+    .order('shared_at', { ascending: false });
+
+  if (error || !sharedNotes) return { data: [] };
+
+  // Get user's dismissals to filter them out
+  const { data: dismissals } = await supabase
+    .from('shared_note_dismissals')
+    .select('shared_note_id')
+    .eq('user_id', user.id);
+
+  const dismissedIds = new Set((dismissals || []).map(d => d.shared_note_id));
+
+  // Filter out dismissed notes
+  const unread = sharedNotes.filter(n => !dismissedIds.has(n.id));
+
+  if (unread.length === 0) return { data: [] };
+
+  // Get sharer profiles for display
+  const sharerIds = [...new Set(unread.map(n => n.sharer_user_id))];
+  const { data: sharerProfiles } = await supabase
+    .from('profiles')
+    .select('id, full_name, nickname, avatar_url')
+    .in('id', sharerIds);
+
+  const profileMap = new Map(
+    (sharerProfiles || []).map(p => [p.id, p])
+  );
+
+  const notifications = unread.map(note => {
+    const sharer = profileMap.get(note.sharer_user_id);
+    return {
+      id: note.id,
+      sharerName: sharer?.nickname || sharer?.full_name?.split(' ')[0] || 'A student',
+      sharerAvatar: sharer?.avatar_url || null,
+      courseCode: note.course_code,
+      courseType: note.course_type,
+      title: note.title,
+      sharedAt: note.shared_at,
+    };
+  });
+
+  return { data: notifications };
+}
+
+/**
+ * Add a shared note to the current user's notes.
+ * Auto-creates the course if the user doesn't have it.
+ */
+export async function addSharedNote(sharedNoteId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  // Fetch the shared note
+  const { data: sharedNote, error: fetchError } = await supabase
+    .from('shared_notes')
+    .select('*')
+    .eq('id', sharedNoteId)
+    .single();
+
+  if (fetchError || !sharedNote) return { error: 'Shared note not found' };
+
+  // Find or create a matching course for this user
+  let courseId: string;
+
+  const { data: existingCourse } = await supabase
+    .from('courses')
+    .select('id')
+    .eq('user_id', user.id)
+    .eq('name', sharedNote.course_code)
+    .single();
+
+  if (existingCourse) {
+    courseId = existingCourse.id;
+  } else {
+    // Auto-create the course
+    const { data: newCourse, error: createError } = await supabase
+      .from('courses')
+      .insert({
+        user_id: user.id,
+        name: sharedNote.course_code,
+        type: sharedNote.course_type,
+        description: `Auto-created from a shared note`,
+      })
+      .select('id')
+      .single();
+
+    if (createError || !newCourse) {
+      console.error('❌ [Share] Failed to create course:', createError);
+      return { error: 'Failed to create course' };
+    }
+    courseId = newCourse.id;
+  }
+
+  // Copy the note content to the user's notes
+  const { data: newNote, error: noteError } = await supabase
+    .from('notes')
+    .insert({
+      course_id: courseId,
+      user_id: user.id,
+      title: sharedNote.title,
+      content: sharedNote.content,
+    })
+    .select('id')
+    .single();
+
+  if (noteError) {
+    console.error('❌ [Share] Failed to add note:', noteError);
+    return { error: 'Failed to add note' };
+  }
+
+  // Mark as added (dismiss the notification)
+  await supabase
+    .from('shared_note_dismissals')
+    .insert({
+      shared_note_id: sharedNoteId,
+      user_id: user.id,
+      action: 'added',
+    });
+
+  // Trigger background RAG indexing for the new note
+  try {
+    fetch('/api/practice/index', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        noteId: newNote.id,
+        courseId,
+        content: sharedNote.content,
+        force: true,
+      }),
+    }).catch(() => {}); // Fire-and-forget
+  } catch {}
+
+  return { success: true, courseId };
+}
+
+/**
+ * Dismiss a shared note notification without adding it.
+ */
+export async function dismissSharedNote(sharedNoteId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: 'Not authenticated' };
+
+  const { error } = await supabase
+    .from('shared_note_dismissals')
+    .insert({
+      shared_note_id: sharedNoteId,
+      user_id: user.id,
+      action: 'dismissed',
+    });
 
   if (error) return { error: error.message };
   return { success: true };

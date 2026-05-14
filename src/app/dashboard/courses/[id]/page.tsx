@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { cn } from '@/lib/utils';
 import { 
   getCourse, 
   getNotes, 
@@ -11,7 +12,8 @@ import {
   getSavedQuestions, 
   deleteSavedQuestion, 
   getQuestionSessions, 
-  getSessionQuestions 
+  getSessionQuestions,
+  shareNote 
 } from '@/lib/supabase/actions';
 import { 
   BookOpen, 
@@ -28,7 +30,9 @@ import {
   Upload,
   ChevronRight,
   Calendar,
-  X
+  X,
+  Share2,
+  Check
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -60,6 +64,7 @@ interface Note {
   title: string;
   content: string;
   created_at: string;
+  is_shared?: boolean;
 }
 
 interface SavedQuestion {
@@ -94,6 +99,7 @@ export default function CourseDetailPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [viewingNote, setViewingNote] = useState<Note | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [sharingNoteId, setSharingNoteId] = React.useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -371,15 +377,45 @@ export default function CourseDetailPage() {
                     <CardTitle className="text-lg group-hover:text-indigo-400 transition-colors uppercase tracking-tight">{note.title}</CardTitle>
                     <CardDescription className="text-[10px] font-bold text-muted-foreground/40">{new Date(note.created_at).toLocaleDateString()}</CardDescription>
                   </div>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteNote(note.id);
-                    }}
-                    className="p-2 text-muted-foreground/20 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        if (note.is_shared) return;
+                        setSharingNoteId(note.id);
+                        const result = await shareNote(note.id);
+                        if ('success' in result && result.success) {
+                          setNotes(prev => prev.map(n => n.id === note.id ? { ...n, is_shared: true } : n));
+                        }
+                        setSharingNoteId(null);
+                      }}
+                      disabled={sharingNoteId === note.id}
+                      className={cn(
+                        "p-2 rounded-xl transition-all",
+                        note.is_shared
+                          ? "text-emerald-400/60 cursor-default"
+                          : "text-muted-foreground/20 hover:text-indigo-400 hover:bg-indigo-500/10"
+                      )}
+                      title={note.is_shared ? 'Shared' : 'Share with classmates'}
+                    >
+                      {sharingNoteId === note.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : note.is_shared ? (
+                        <Check className="w-4 h-4" />
+                      ) : (
+                        <Share2 className="w-4 h-4" />
+                      )}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteNote(note.id);
+                      }}
+                      className="p-2 text-muted-foreground/20 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-all"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </CardHeader>
                 <CardContent className="flex-1">
                   <p className="text-sm text-muted-foreground/60 line-clamp-6 leading-relaxed whitespace-pre-wrap">{note.content}</p>

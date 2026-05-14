@@ -62,8 +62,8 @@ export function WaveformVisualizer({
     // Get frequency data
     let dataArray: Uint8Array | null = null;
     if (analyserNode && isRecording && !isPaused) {
-      dataArray = new Uint8Array(analyserNode.frequencyBinCount) as Uint8Array<ArrayBuffer>;
-      analyserNode.getByteFrequencyData(dataArray);
+      dataArray = new Uint8Array(analyserNode.frequencyBinCount) as any;
+      analyserNode.getByteFrequencyData(dataArray as any);
     }
 
     // ─── Outer Glow Ring ──────────────────────────────────────
