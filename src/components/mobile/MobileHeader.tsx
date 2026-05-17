@@ -5,6 +5,9 @@ import { usePathname } from 'next/navigation';
 import { UserAvatar, useUser } from '@/components/auth/UserAvatar';
 import { cn } from '@/lib/utils';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { useShards } from '@/components/shards/ShardBalanceProvider';
+import { ShardIcon } from '@/components/shards/ShardIcon';
+import { ShardPurchaseModal } from '@/components/shards/ShardPurchaseModal';
 
 interface MobileHeaderProps {
   onAvatarTap?: () => void;
@@ -14,6 +17,8 @@ export function MobileHeader({ onAvatarTap }: MobileHeaderProps) {
   const pathname = usePathname();
   const { user, loading } = useUser();
   const [scrolled, setScrolled] = useState(false);
+  const { balance, isLoading: shardsLoading } = useShards();
+  const [isShardShopOpen, setIsShardShopOpen] = useState(false);
 
   const nickname = user?.user_metadata?.nickname;
   const firstName = user?.user_metadata?.full_name?.split(' ')[0] || 'Student';
@@ -53,14 +58,30 @@ export function MobileHeader({ onAvatarTap }: MobileHeaderProps) {
         scrolled ? 'py-2.5' : 'py-4'
       )}>
         <div className="flex-1 min-w-0">
-          <h1
-            className={cn(
-              'font-bold tracking-tight transition-all duration-300 truncate',
-              scrolled ? 'text-base' : 'text-2xl'
+          <div className="flex items-center gap-2">
+            <h1
+              className={cn(
+                'font-bold tracking-tight transition-all duration-300 truncate',
+                scrolled ? 'text-base' : 'text-2xl'
+              )}
+            >
+              {title}
+            </h1>
+            {pathname === '/dashboard' && !loading && (
+              <button
+                onClick={() => setIsShardShopOpen(true)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border transition-all active:scale-95 cursor-pointer shrink-0 mt-0.5",
+                  scrolled ? "bg-white/[0.04] border-white/[0.08]" : "bg-white/[0.06] border-white/[0.1] shadow-md shadow-black/10"
+                )}
+              >
+                <ShardIcon size={12} />
+                <span className="text-[11px] font-bold tabular-nums text-white/80">
+                  {shardsLoading ? '...' : balance.toLocaleString()}
+                </span>
+              </button>
             )}
-          >
-            {title}
-          </h1>
+          </div>
           {subtitle && !scrolled && (
             <p className="text-xs text-muted-foreground/50 font-medium mt-0.5">
               {subtitle}
@@ -78,6 +99,7 @@ export function MobileHeader({ onAvatarTap }: MobileHeaderProps) {
           </button>
         </div>
       </div>
+      <ShardPurchaseModal open={isShardShopOpen} onOpenChange={setIsShardShopOpen} />
     </header>
   );
 }
