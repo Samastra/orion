@@ -9,6 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkMath from 'remark-math';
 import remarkGfm from 'remark-gfm';
 import rehypeKatex from 'rehype-katex';
+import { toast } from 'sonner';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -230,9 +231,11 @@ export function MobileAISheet({
         setIsIndexed(true);
         return true;
       }
+      toast.error('Failed to prepare document for AI. Please try again.');
       return false;
     } catch (e) {
       console.error('Indexing failed:', e);
+      toast.error('Network error while preparing document for AI.');
       return false;
     } finally {
       setIsIndexing(false);
@@ -270,10 +273,12 @@ export function MobileAISheet({
       });
 
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         if (err.error === 'INSUFFICIENT_SHARDS') {
+          toast.error("You've run out of shards! Go to your dashboard to purchase more.");
           throw new Error("You've run out of shards! Go to your dashboard to purchase more.");
         }
+        toast.error(err.error || 'Failed to get AI response.');
         throw new Error(err.error || 'API error');
       }
 
@@ -299,6 +304,7 @@ export function MobileAISheet({
       }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
+        toast.error(err.message || 'Could not reach the AI. Try again.');
         setMessages((prev) => [...prev, { role: 'ai', content: `⚠️ ${err.message || 'Could not reach the AI. Try again.'}` }]);
       }
     } finally {

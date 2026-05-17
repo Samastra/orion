@@ -5,6 +5,7 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { X, Plus, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createSavedQuestion } from '@/lib/supabase/actions';
+import { toast } from 'sonner';
 
 interface AddQuestionModalProps {
   courseId: string;
@@ -25,9 +26,12 @@ export function AddQuestionModal({ courseId, onSuccess }: AddQuestionModalProps)
     const result = await createSavedQuestion(formData);
     setIsSubmitting(false);
     
-    if (result.data) {
+    if (result.error) {
+      toast.error(result.error);
+    } else if (result.data) {
       setIsOpen(false);
       onSuccess?.();
+      toast.success('Flashcard saved');
     }
   }
 

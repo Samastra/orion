@@ -102,17 +102,8 @@ export async function POST(req: NextRequest) {
     }
 
     const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ 
-      model: "gemini-3.1-flash-lite-preview",
-      systemInstruction: type === 'flashcard'
-        ? getFlashcardSystemPrompt(finalizedCount, difficulty)
-        : getMCQSystemPrompt(finalizedCount, difficulty)
-    });
 
-    // ─── RAG RETRIEVAL (always from DB, never from frontend) ────
     const baseQuery = topicFocus || "Key concepts, definitions, and important facts for a comprehensive review.";
-    
-    // Build additional queries for topic diversity
     const additionalQueries: string[] = [];
     if (!topicFocus) {
       additionalQueries.push(
@@ -122,141 +113,161 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Dynamic Context Scaling (Surgical Retrieval)
-    // 1 chunk per 4 questions, minimum 3, maximum 20 to avoid dilution.
-    const dynamicChunkCount = Math.min(20, Math.max(3, Math.ceil(count / 4)));
+    // ─── HELPER: GENERATE FOR SPECIFIC SCOPE ────────────────────
+    const generateForScope = async (targetNoteId: string | null, targetCount: number) => {
+      const dynamicChunkCount = Math.min(20, Math.max(3, Math.ceil(targetCount / 4)));
 
-    const retrieved = await getMultiQueryContext({
-      query: baseQuery,
-      noteId,
-      courseId,
-      chunkCount: dynamicChunkCount,
-      targetDepth: technicalDepth,
-      additionalQueries,
-    });
-
-    if (!retrieved.text) {
-      console.warn(`🛑 [Practice API] Retrieval returned 0 content for Note:${noteId || 'all'} Course:${courseId || 'all'}.`);
-      return NextResponse.json({ 
-        error: topicFocus 
-          ? `Could not find any content in this document related to your focus topic: "${topicFocus}". Try a broader topic or check your spelling.`
-          : 'Could not retrieve content for this document. It may need to be re-indexed, or it might be completely empty.' 
-      }, { status: 422 });
-    }
-
-    console.log(`📚 [Practice RAG] Retrieved ${retrieved.chunkCount} chunks (${retrieved.totalChars} chars)`);
-
-    // ─── BUILD PROMPT ───────────────────────────────────────────
-    let systemContent = getPracticeInstructionPrompt({
-      count: finalizedCount,
-      type,
-      difficulty,
-      isCourseReview: !noteId,
-      topicFocus,
-      technicalDepth
-    });
-
-    systemContent += `\n\n--- DOCUMENT SECTIONS ---\n${retrieved.text}\n--- END SECTIONS ---`;
-
-    // ─── GENERATE ───────────────────────────────────────────────
-    const result = await withRetry(async () => {
-      return await model.generateContent({
-        contents: [{ role: 'user', parts: [{ text: systemContent }] }],
-        generationConfig: {
-          temperature: 0.7,
-          responseMimeType: "application/json",
-          maxOutputTokens: 8192,
-        }
+      const retrieved = await getMultiQueryContext({
+        query: baseQuery,
+        noteId: targetNoteId || undefined,
+        courseId,
+        chunkCount: dynamicChunkCount,
+        targetDepth: technicalDepth,
+        additionalQueries,
       });
-    });
 
-    const content = result.response.text();
-    // ─── PARSE & RECOVER ────────────────────────────────────────
-    const jsonContent = sanitizeJSON(content);
+      if (!retrieved.text) return { items: [], title: null };
 
-    /**
-     * Surgical regex extraction for stranded items.
-     * Uses a multi-stage fallback to ensure we get as many valid questions as possible.
-     */
-    const extractItems = (str: string): any[] => {
-      const items: any[] = [];
-      // Regex looks for "id": N through various structures until the end of the object
-      const pattern = /\{\s*"id"\s*:\s*\d+[\s\S]*?\}/g;
-      const matches = str.match(pattern);
-      
-      if (matches) {
-        matches.forEach(m => {
-          try {
-            // Clean up backslashes for this specific chunk
-            const cleanChunk = m.replace(/\\(?![bfnrtu\/"])/g, "\\\\");
-            const item = JSON.parse(cleanChunk);
-            
-            if (type === 'mcq') {
-              if (item.question && Array.isArray(item.options) && item.options.length >= 2) {
-                // Ensure field integrity
-                if (!item.optionExplanations || !Array.isArray(item.optionExplanations)) {
-                  item.optionExplanations = new Array(item.options.length).fill("Contextual explanation provided above.");
-                }
-                items.push(item);
-              }
-            } else if (type === 'flashcard') {
-              if (item.front && item.back) items.push(item);
-            }
-          } catch (e) { /* skip unparseable chunk */ }
+      let systemContent = getPracticeInstructionPrompt({
+        count: targetCount,
+        type,
+        difficulty,
+        isCourseReview: !targetNoteId,
+        topicFocus,
+        technicalDepth
+      });
+
+      systemContent += `\n\n--- DOCUMENT SECTIONS ---\n${retrieved.text}\n--- END SECTIONS ---`;
+
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-3.1-flash-lite-preview",
+        systemInstruction: type === 'flashcard'
+          ? getFlashcardSystemPrompt(targetCount, difficulty)
+          : getMCQSystemPrompt(targetCount, difficulty)
+      });
+
+      const result = await withRetry(async () => {
+        return await model.generateContent({
+          contents: [{ role: 'user', parts: [{ text: systemContent }] }],
+          generationConfig: {
+            temperature: 0.7,
+            responseMimeType: "application/json",
+            maxOutputTokens: 8192,
+          }
         });
-      }
-      return items;
-    };
+      });
 
-    try {
+      const content = result.response.text();
+      const jsonContent = sanitizeJSON(content);
+
+      const extractItems = (str: string): any[] => {
+        const items: any[] = [];
+        const pattern = /\{\s*"id"\s*:\s*\d+[\s\S]*?\}/g;
+        const matches = str.match(pattern);
+        if (matches) {
+          matches.forEach(m => {
+            try {
+              const cleanChunk = m.replace(/\\(?![bfnrtu\/"])/g, "\\\\");
+              const item = JSON.parse(cleanChunk);
+              if (type === 'mcq') {
+                if (item.question && Array.isArray(item.options) && item.options.length >= 2) {
+                  if (!item.optionExplanations || !Array.isArray(item.optionExplanations)) {
+                    item.optionExplanations = new Array(item.options.length).fill("Contextual explanation provided above.");
+                  }
+                  items.push(item);
+                }
+              } else if (type === 'flashcard') {
+                if (item.front && item.back) items.push(item);
+              }
+            } catch (e) { }
+          });
+        }
+        return items;
+      };
+
       let items: any[] = [];
       let title = type === 'mcq' ? 'MCQ Practice' : 'Flashcard Practice';
 
-      // Stage 1: Standard Parse
       try {
         const parsed = JSON.parse(jsonContent);
         items = parsed.items || [];
         if (parsed.title) title = parsed.title;
       } catch (e) {
-        // Stage 2: Attempt Auto-Closure Repair (for truncated output)
         try {
-          console.warn("⚠️ [Recovery] JSON truncated. Attempting auto-closure repair...");
           const repaired = JSON.parse(autoCloseJSON(jsonContent));
           items = repaired.items || [];
           if (repaired.title) title = repaired.title;
         } catch (e2) {
-          // Stage 3: Surgical Item Extraction (Regex)
-          console.warn("⚠️ [Recovery] Parse failed. Falling back to surgical item extraction...");
           items = extractItems(jsonContent);
           const titleMatch = jsonContent.match(/"title"\s*:\s*"([^"]+)"/);
           if (titleMatch) title = titleMatch[1];
         }
       }
+      return { items, title };
+    };
 
-      if (items.length === 0) {
-        throw new Error("Zero valid items recovered from AI response.");
+    // ─── EXECUTE PARALLEL OR SINGLE ─────────────────────────────
+    let finalItems: any[] = [];
+    let finalTitle = type === 'mcq' ? 'MCQ Practice' : 'Flashcard Practice';
+
+    if (!noteId && courseId) {
+      // Parallel Note Processing Architecture
+      console.log(`[Practice API] Running parallel generation for course: ${courseId}`);
+      const { data: notes } = await supabase.from('notes').select('id').eq('course_id', courseId);
+      
+      if (!notes || notes.length === 0) {
+        return NextResponse.json({ error: 'No notes found in this course to generate practice from.' }, { status: 422 });
       }
 
-      console.log(`✅ [Practice] Generated ${items.length} items.`);
-
-      // ─── DEDUCT SHARDS (post-success) ──────────────────────────
-      const actualCost = calculatePracticeCost(practiceType as 'mcq' | 'flashcard', items.length);
-      await deductShards(user.id, actualCost, `practice_${practiceType}`, {
-        count: items.length,
-        difficulty,
-        noteId: noteId || null,
-        courseId: courseId || null,
+      const numNotes = notes.length;
+      const baseCount = Math.floor(finalizedCount / numNotes);
+      let remainder = finalizedCount % numNotes;
+      
+      const promises = notes.map(note => {
+        let countForThisNote = baseCount;
+        if (remainder > 0) {
+          countForThisNote += 1;
+          remainder -= 1;
+        }
+        if (countForThisNote === 0) return Promise.resolve({ items: [], title: null });
+        return generateForScope(note.id, countForThisNote);
       });
 
-      return NextResponse.json({ items, title, shardsDeducted: actualCost });
-
-    } catch (error) {
-      console.error('Failed to parse AI response:', jsonContent.slice(0, 500));
-      return NextResponse.json({
-        error: 'The AI output was incompatible. Please try again.',
-        details: error instanceof Error ? error.message : "Unknown error"
-      }, { status: 422 });
+      const results = await Promise.allSettled(promises);
+      for (const res of results) {
+        if (res.status === 'fulfilled' && res.value.items) {
+          finalItems.push(...res.value.items);
+        }
+      }
+      finalTitle = 'Comprehensive Course Review';
+    } else {
+      // Single Note
+      const res = await generateForScope(noteId, finalizedCount);
+      finalItems = res.items;
+      if (res.title) finalTitle = res.title;
     }
+
+    if (finalItems.length === 0) {
+      return NextResponse.json({ error: 'Could not generate any valid items. The course might be empty or missing context.' }, { status: 422 });
+    }
+
+    // Shuffle and Cap
+    finalItems.sort(() => Math.random() - 0.5);
+    finalItems = finalItems.slice(0, finalizedCount);
+
+    console.log(`✅ [Practice] Generated ${finalItems.length} items successfully.`);
+
+    // ─── DEDUCT SHARDS ──────────────────────────────────────────
+    const actualCost = calculatePracticeCost(practiceType as 'mcq' | 'flashcard', finalItems.length);
+    await deductShards(user.id, actualCost, `practice_${practiceType}`, {
+      count: finalItems.length,
+      difficulty,
+      noteId: noteId || null,
+      courseId: courseId || null,
+    });
+
+    return NextResponse.json({ items: finalItems, title: finalTitle, shardsDeducted: actualCost });
+
   } catch (error) {
     console.error('Practice API error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

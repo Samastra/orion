@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { toast } from 'sonner';
 
 type PracticeType = 'mcq' | 'flashcard' | 'saved';
 type Difficulty = 'Easy' | 'Medium' | 'Hard' | 'Exam-style';
@@ -111,10 +112,14 @@ export function PracticeView({ context, courseId, noteId, topicFocus, initialTyp
               }),
             });
             const indexData = await indexRes.json();
-            if (!indexRes.ok) console.warn("Indexing failed:", indexData.error);
+            if (!indexRes.ok) {
+              console.warn("Indexing failed:", indexData.error);
+              toast.error(indexData.error || 'Failed to index document for practice.');
+            }
           }
-        } catch (e) {
+        } catch (e: any) {
           console.warn("Indexing step failed:", e);
+          toast.error(e.message || 'Network error during indexing.');
         } finally {
           setIsIndexing(false);
         }
@@ -163,6 +168,7 @@ export function PracticeView({ context, courseId, noteId, topicFocus, initialTyp
 
       // Handle insufficient shards specifically
       if (err.message === 'INSUFFICIENT_SHARDS') {
+        toast.error("Not enough shards! Purchase more to continue.");
         setIsShardShopOpen(true);
         return;
       }
@@ -170,8 +176,10 @@ export function PracticeView({ context, courseId, noteId, topicFocus, initialTyp
       // More descriptive error for JSON parsing failures
       if (err instanceof SyntaxError || err.message?.includes('invalid format')) {
         setError('The AI return an invalid format. Please try again with a slightly different difficulty or count.');
+        toast.error('AI returned invalid format');
       } else {
         setError(err.message || 'Failed to generate. Try again.');
+        toast.error(err.message || 'Generation failed');
       }
     } finally {
       setIsGenerating(false);

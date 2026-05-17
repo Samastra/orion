@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import { createCourse, deleteCourse } from '@/lib/supabase/actions';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 
 export default function CoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -39,7 +40,11 @@ export default function CoursesPage() {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (!error) setCourses(data || []);
+    if (error) {
+      toast.error('Failed to load courses');
+    } else {
+      setCourses(data || []);
+    }
     setLoading(false);
   };
 
@@ -49,9 +54,12 @@ export default function CoursesPage() {
     const formData = new FormData(e.currentTarget);
     const result = await createCourse(formData);
     
-    if (result.data) {
+    if (result.error) {
+      toast.error(result.error);
+    } else if (result.data) {
       setCourses([result.data, ...courses]);
       setIsModalOpen(false);
+      toast.success('Course created successfully');
     }
     setIsCreating(false);
   };
@@ -59,8 +67,11 @@ export default function CoursesPage() {
   const handleDeleteCourse = async (id: string) => {
     setIsDeleting(id);
     const result = await deleteCourse(id);
-    if (result.success) {
+    if (result.error) {
+      toast.error(result.error);
+    } else if (result.success) {
       setCourses(courses.filter((c: Course) => c.id !== id));
+      toast.success('Course deleted');
     }
     setIsDeleting(null);
   };

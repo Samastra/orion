@@ -10,6 +10,7 @@ import { ChatWelcomeScreen } from './ChatWelcomeScreen';
 import { ChatInputBar } from './ChatInputBar';
 import { ChatMessageList } from './ChatMessageList';
 import { Sparkles, CheckCircle2, Loader2, RefreshCw } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Message {
   role: 'ai' | 'user';
@@ -143,8 +144,9 @@ export const ChatInterface = React.forwardRef<
       });
 
       if (!res.ok) {
-        const err = await res.json();
+        const err = await res.json().catch(() => ({}));
         if (err.error === 'INSUFFICIENT_SHARDS') {
+          toast.error("You've run out of shards! Purchase more to continue.");
           throw new Error("You've run out of shards! Tap the shard balance in the sidebar to purchase more.");
         }
         throw new Error(err.error || `API error: ${res.status}`);
@@ -172,6 +174,7 @@ export const ChatInterface = React.forwardRef<
       }
     } catch (error: any) {
       if (error.name === 'AbortError') return;
+      toast.error(error.message || 'AI chat encountered an error');
       setMessages(prev => [...prev, { role: 'ai', content: `⚠️ ${error.message || 'The tutor is disconnected. Retrying...'}`, timestamp: ts() }]);
     } finally {
       setIsLoading(false);

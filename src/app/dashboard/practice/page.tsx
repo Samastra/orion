@@ -98,21 +98,15 @@ export default function PracticePage() {
     setIsNotesLoading(false);
   };
 
-  // Step 2a: User picks "Random" → load all notes as context
+  // Step 2a: User picks "Random"
   const handleRandomScope = async () => {
     if (!selectedCourse) return;
-    setIsContextLoading(true);
+    
+    // We no longer stitch all notes into a massive string here.
+    // The backend will fetch and process all notes in parallel automatically
+    // when courseId is provided but noteId is null.
+    setCourseContext(null);
     setScopeStep('practice');
-
-    let fullContext = selectedCourse.description || '';
-    if (courseNotes.length > 0) {
-      const notesContent = courseNotes
-        .map(n => `--- ${n.title} ---\n${n.content}`)
-        .join('\n\n');
-      fullContext = `${fullContext}\n\n${notesContent}`.trim();
-    }
-    setCourseContext(fullContext || null);
-    setIsContextLoading(false);
   };
 
   // Step 2c: User picks "Saved Sessions"

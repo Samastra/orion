@@ -8,6 +8,7 @@ import { SHARD_COSTS } from '@/constants/shards';
 import { ShardIcon } from '@/components/shards/ShardIcon';
 import { WaveformVisualizer } from './WaveformVisualizer';
 import { LiveTranscript, TranscriptSegment } from './LiveTranscript';
+import { toast } from 'sonner';
 
 /**
  * LECTURE RECORDER
@@ -104,7 +105,9 @@ export function LectureRecorder({ courseId, courseName, onRecordingComplete, onC
       });
 
       if (!response.ok) {
-        console.warn('⚠️ [Recorder] Transcription chunk failed:', response.status);
+        const errorData = await response.json().catch(() => ({}));
+        console.warn('⚠️ [Recorder] Transcription chunk failed:', response.status, errorData);
+        toast.error(errorData.message || 'Failed to process audio chunk. Please check your connection.');
         return;
       }
 
@@ -129,6 +132,7 @@ export function LectureRecorder({ courseId, courseName, onRecordingComplete, onC
       }
     } catch (err) {
       console.warn('⚠️ [Recorder] Chunk send error:', err);
+      toast.error('Network error while processing audio chunk.');
     } finally {
       setIsProcessingChunk(false);
     }
@@ -227,6 +231,7 @@ export function LectureRecorder({ courseId, courseName, onRecordingComplete, onC
         setMicPermissionDenied(true);
       } else {
         setError('Failed to access microphone. Please check your browser permissions.');
+        toast.error('Microphone access failed');
       }
     }
   }, [createAndStartRecorder, cycleRecorder]);

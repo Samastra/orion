@@ -49,6 +49,7 @@ import { parseDocument } from '@/lib/document-parser';
 import { AddQuestionModal } from '@/components/practice/AddQuestionModal';
 import { FlashCard } from '@/components/practice/FlashCard';
 import { MobileNoteReader } from '@/components/mobile/MobileNoteReader';
+import { toast } from 'sonner';
 
 interface Course {
   id: string;
@@ -115,16 +116,24 @@ export default function CourseDetailPage() {
       getQuestionSessions(id as string)
     ]);
 
-    if (!courseRes.error) setCourse(courseRes.data);
-    if (!notesRes.error) setNotes(notesRes.data || []);
-    if (!sessionsRes.error) setSessions(sessionsRes.data || []);
+    if (courseRes.error) toast.error(courseRes.error);
+    else setCourse(courseRes.data);
+    
+    if (notesRes.error) toast.error('Failed to load notes');
+    else setNotes(notesRes.data || []);
+    
+    if (sessionsRes.error) toast.error('Failed to load sessions');
+    else setSessions(sessionsRes.data || []);
+    
     setLoading(false);
   };
 
   const handleSelectSession = async (session: QuestionSession) => {
     setLoadingSession(true);
     const res = await getSessionQuestions(session.id, id as string);
-    if (!res.error) {
+    if (res.error) {
+      toast.error(res.error);
+    } else {
       setSessionQuestions(res.data || []);
       setSelectedSession(session);
     }
@@ -138,9 +147,12 @@ export default function CourseDetailPage() {
     formData.append('courseId', id as string);
 
     const result = await createNote(formData);
-    if (result.data) {
+    if (result.error) {
+      toast.error(result.error);
+    } else if (result.data) {
       setNotes([result.data, ...notes]);
       setIsCreatingNote(false);
+      toast.success('Note saved successfully');
       
       // Proactive background indexing
       fetch('/api/practice/index', {
@@ -152,22 +164,31 @@ export default function CourseDetailPage() {
           content: formData.get('content'), 
           force: true 
         })
-      }).catch(err => console.error("Proactive indexing failed:", err));
+      }).catch(err => {
+         console.error("Proactive indexing failed:", err);
+         toast.error('Note saved, but failed to index for AI. It will index later.');
+      });
     }
     setIsSubmittingNote(false);
   };
 
   const handleDeleteNote = async (noteId: string) => {
     const result = await deleteNote(noteId, id as string);
-    if (result.success) {
+    if (result.error) {
+      toast.error(result.error);
+    } else if (result.success) {
       setNotes(notes.filter((n: Note) => n.id !== noteId));
+      toast.success('Note deleted');
     }
   };
 
   const handleDeleteQuestion = async (questionId: string | number) => {
     const result = await deleteSavedQuestion(questionId.toString(), id as string);
-    if (result.success) {
+    if (result.error) {
+      toast.error(result.error);
+    } else if (result.success) {
       setSessionQuestions(sessionQuestions.filter((q: SavedQuestion) => q.id !== questionId));
+      toast.success('Question deleted');
     }
   };
 
@@ -181,7 +202,7 @@ export default function CourseDetailPage() {
       const textContent = Array.isArray(content) ? content.join('\n\n') : content;
 
       if (!textContent || textContent.trim().length < 5) {
-        alert(`We identified this as a ${type.toUpperCase()} file, but no readable text was found inside. (Note: Scanned images cannot be read yet).`);
+        toast.error(`We identified this as a ${type.toUpperCase()} file, but no readable text was found inside. (Note: Scanned images cannot be read yet).`);
         setIsUploading(false);
         return;
       }
@@ -192,8 +213,11 @@ export default function CourseDetailPage() {
       formData.append('content', textContent);
 
       const result = await createNote(formData);
-      if (result.data) {
+      if (result.error) {
+        toast.error(result.error);
+      } else if (result.data) {
         setNotes([result.data, ...notes]);
+        toast.success('Document uploaded and saved');
         
         // Proactive background indexing
         fetch('/api/practice/index', {
@@ -205,14 +229,17 @@ export default function CourseDetailPage() {
             content: textContent, 
             force: true 
           })
-        }).catch(err => console.error("Proactive indexing failed:", err));
+        }).catch(err => {
+           console.error("Proactive indexing failed:", err);
+           toast.error('Document saved, but failed to index for AI. It will index later.');
+        });
         
       } else {
-        alert("Failed to save the note to the database. Please check your connection.");
+        toast.error("Failed to save the note to the database. Please check your connection.");
       }
     } catch (error: any) {
       console.error('Extraction failed:', error);
-      alert(error.message || "An unexpected error occurred while reading the file.");
+      toast.error(error.message || "An unexpected error occurred while reading the file.");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -384,8 +411,11 @@ export default function CourseDetailPage() {
                         if (note.is_shared) return;
                         setSharingNoteId(note.id);
                         const result = await shareNote(note.id);
-                        if ('success' in result && result.success) {
+                        if (result.error) {
+                          toast.error(result.error);
+                        } else if ('success' in result && result.success) {
                           setNotes(prev => prev.map(n => n.id === note.id ? { ...n, is_shared: true } : n));
+                          toast.success('Note shared with your university!');
                         }
                         setSharingNoteId(null);
                       }}

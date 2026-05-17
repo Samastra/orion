@@ -820,8 +820,8 @@ export async function getSharedNotifications() {
   // Get sharer profiles for display
   const sharerIds = [...new Set(unread.map(n => n.sharer_user_id))];
   const { data: sharerProfiles } = await supabase
-    .from('profiles')
-    .select('id, full_name, nickname, avatar_url')
+    .from('public_profiles')
+    .select('id, nickname, avatar_url')
     .in('id', sharerIds);
 
   const profileMap = new Map(
@@ -832,7 +832,7 @@ export async function getSharedNotifications() {
     const sharer = profileMap.get(note.sharer_user_id);
     return {
       id: note.id,
-      sharerName: sharer?.nickname || sharer?.full_name?.split(' ')[0] || 'A student',
+      sharerName: sharer?.nickname || 'A student',
       sharerAvatar: sharer?.avatar_url || null,
       courseCode: note.course_code,
       courseType: note.course_type,
